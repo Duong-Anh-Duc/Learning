@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <title>Xác nhận đơn hàng</title>
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 600px;
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #4f5ef1;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      color: #ffffff;
+    }
+
+    .message-sm {
+      text-align: center;
+      font-size: 18px;
+      margin-bottom: 20px;
+      padding-top: 50px;
+    }
+
+    .message-sm h1 {
+      font-size: 25px;
+      font-weight: 600;
+    }
+
+    .course-info {
+      margin: auto;
+      padding: 20px 0;
+      width: 100%;
+      background-color: #ffffff;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 2px 2px 2px 2px rgba(206, 197, 197, 0.1);
+      color: #000000;
+    }
+
+    .course-info h4 {
+      color: #23bd70;
+      font-size: 22px;
+      font-weight: 500;
+      text-align: center;
+      margin-top: 0;
+    }
+
+    .first-td {
+      text-transform: uppercase;
+      color: #0000006c;
+      font-size: 16px;
+      padding: 5px 0;
+      width: 1%;
+      font-weight: 600;
+    }
+
+    .second-td {
+      font-weight: 500;
+      color: #000000af;
+      font-size: 15px;
+    }
+
+    .col-2 {
+      width: 100%;
+      text-align: left;
+      padding: 5px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    td {
+      padding: 10px;
+      text-align: center;
+    }
+
+    .table-row {
+      width: 70%;
+      margin: auto;
+      padding: 10px 0;
+      display: block;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 100px;
+      color: #ffffff;
+    }
+
+    .footer p a {
+      text-decoration: none;
+      color: #ffffff;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="message-sm">
+      <h1>Đơn hàng ELearning của bạn đã được xác nhận!</h1>
+      <p>Chúng tôi cũng háo hức như bạn đó 😊</p>
+    </div>
+
+    <div class="course-info">
+      <h4>Thông tin đơn hàng:</h4>
+
+      <table style="border-bottom: 1px solid #0000002f;">
+        <tr>
+          <td>Mã đơn: <%= order._id %>
+          </td>
+          <td>Ngày đặt: <%= order.date %>
+          </td>
+        </tr>
+      </table>
+
+      <table style="width: 90%; margin: auto;">
+        <tr>
+          <td class="first-td">Sản phẩm</td>
+          <td class="first-td">Số lượng</td>
+          <td class="first-td">Giá</td>
+        </tr>
+        <tr>
+          <td class="second-td">
+            <%= order.name %>
+          </td>
+          <td class="second-td">1</td>
+          <td class="second-td">$<%= order.price %>
+          </td>
+        </tr>
+      </table>
+
+      <table class="table-row" style="border-top: 1px solid #00000029;">
+        <tr>
+          <td class="col-2">Tạm tính:</td>
+          <td class="col-2">$<%= order.price %>
+          </td>
+        </tr>
+      </table>
+
+      <table class="table-row" style="margin-top: -20px;">
+        <tr>
+          <td class="col-2"><strong>Tổng cộng:</strong></td>
+          <td class="col-2"><strong>$<%= order.price %></strong></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="footer">
+      <p>
+        Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ đội ngũ hỗ trợ tại
+        <a href="mailto:support@becodemy.com">support@becodemy.com</a>
+      </p>
+      <p>&copy; 2023 Elearning. Bản quyền thuộc về chúng tôi.</p>
+    </div>
+  </div>
+</body>
+
+</html>
