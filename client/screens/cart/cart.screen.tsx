@@ -1,7 +1,7 @@
 // frontend/app/(routes)/cart/index.tsx
 import { useCart } from "@/context/CartContext";
 import { SERVER_URI } from "@/utils/uri";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useStripe } from "@stripe/stripe-react-native";
 import axios from "axios";
@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import * as Animatable from "react-native-animatable";
 import { Toast } from "react-native-toast-notifications";
 
 type CartItemType = {
@@ -28,24 +29,8 @@ type CartItemType = {
     public_id: string;
     url: string;
   };
+  quantity?: number;
 };
-
-interface CoursesType {
-  _id: string;
-  name: string;
-  price: number;
-  estimatedPrice: number;
-  thumbnail: {
-    public_id: string;
-    url: string;
-  };
-  ratings: number;
-  purchased: number;
-  description: string;
-  prerequisites: Array<{ title: string }>;
-  benefits: Array<{ title: string }>;
-  reviews: Array<{ user: any; rating: number; comment: string; commentReplies?: any[] }>;
-}
 
 export default function CartScreen() {
   const [refreshing, setRefreshing] = useState(false);
@@ -173,6 +158,7 @@ export default function CartScreen() {
   const handleRemoveItem = async (courseId: string) => {
     try {
       await removeFromCart(courseId);
+      Toast.show("Đã xóa khóa học khỏi giỏ hàng!", { type: "success" });
     } catch (error: any) {
       Toast.show("Không thể xóa khóa học khỏi giỏ hàng", { type: "danger" });
     }
@@ -284,7 +270,6 @@ export default function CartScreen() {
       setOrderDetails(response.data.order);
       await fetchCart();
       await fetchEnrolledCourses();
-      console.log("Cart items after create order:", cartItems);
       Toast.show("Thanh toán thành công!", { type: "success" });
     } catch (error: any) {
       console.error("Lỗi khi tạo đơn hàng:", error);
@@ -296,55 +281,58 @@ export default function CartScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#009990" />
-        <Text style={{ marginTop: 10, fontSize: 16, color: "#333" }}>
-          Đang tải...
-        </Text>
+        <Text style={styles.loadingText}>Đang tải...</Text>
       </View>
     );
   }
 
   return (
-    <LinearGradient colors={["#009990", "#F6F7F9"]} style={styles.container}>
+    <LinearGradient colors={["#4A00E0", "#8E2DE2"]} style={styles.container}>
       {orderSuccess ? (
-        <View style={{ flex: 1 }}>
-          <View style={styles.successContainer}>
-            <Image
-              source={require("@/assets/images/account_confirmation.png")}
-              style={styles.successImage}
-            />
-            <Text style={styles.successTitle}>Thanh Toán Thành Công!</Text>
-            <Text style={styles.successText}>Cảm ơn bạn đã mua hàng!</Text>
-            <View style={styles.orderDetails}>
-              <Text style={styles.orderText}>
-                Mã đơn hàng: {orderDetails?._id?.slice(0, 6) ?? "N/A"}
-              </Text>
-              <Text style={styles.orderText}>
-                Trạng thái: {orderDetails?.status ?? "N/A"}
-              </Text>
-              <Text style={styles.orderText}>
-                Tổng giá: {orderDetails?.totalPrice?.toFixed(2) ?? "0"} VNĐ
-              </Text>
-              <Text style={styles.orderText}>
-                Số lượng khóa học: {orderDetails?.courses?.length ?? 0}
-              </Text>
-              <Text style={styles.orderText}>
-                Người mua: {orderDetails?.userName ?? "N/A"}
-              </Text>
-              <Text style={styles.orderText}>
-                Phương thức thanh toán: {orderDetails?.payment_info?.paymentMethod ?? "N/A"}
-              </Text>
-              <Text style={styles.orderText}>
-                Thời gian thanh toán:{" "}
-                {orderDetails?.payment_info?.created
-                  ? new Date(orderDetails.payment_info.created * 1000).toLocaleString()
-                  : "N/A"}
-              </Text>
-              <Text style={styles.orderText}>
-                Bạn sẽ nhận được email xác nhận!
-              </Text>
-            </View>
+        <View style={styles.successContainer}>
+          <Animatable.Image
+            animation="bounceIn"
+            source={require("@/assets/images/account_confirmation.png")}
+            style={styles.successImage}
+          />
+          <Animatable.Text animation="fadeInUp" style={styles.successTitle}>
+            Thanh Toán Thành Công!
+          </Animatable.Text>
+          <Animatable.Text animation="fadeInUp" style={styles.successText}>
+            Cảm ơn bạn đã mua hàng!
+          </Animatable.Text>
+          <Animatable.View animation="fadeInUp" style={styles.orderDetails}>
+            <Text style={styles.orderText}>
+              Mã đơn hàng: {orderDetails?._id?.slice(0, 6) ?? "N/A"}
+            </Text>
+            <Text style={styles.orderText}>
+              Trạng thái: {orderDetails?.status ?? "N/A"}
+            </Text>
+            <Text style={styles.orderText}>
+              Tổng giá: {orderDetails?.totalPrice?.toFixed(2) ?? "0"} VNĐ
+            </Text>
+            <Text style={styles.orderText}>
+              Số lượng khóa học: {orderDetails?.courses?.length ?? 0}
+            </Text>
+            <Text style={styles.orderText}>
+              Người mua: {orderDetails?.userName ?? "N/A"}
+            </Text>
+            <Text style={styles.orderText}>
+              Phương thức thanh toán: {orderDetails?.payment_info?.paymentMethod ?? "N/A"}
+            </Text>
+            <Text style={styles.orderText}>
+              Thời gian thanh toán:{" "}
+              {orderDetails?.payment_info?.created
+                ? new Date(orderDetails.payment_info.created * 1000).toLocaleString()
+                : "N/A"}
+            </Text>
+            <Text style={styles.orderText}>
+              Bạn sẽ nhận được email xác nhận!
+            </Text>
+          </Animatable.View>
+          <Animatable.View animation="fadeInUp">
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => {
@@ -354,21 +342,25 @@ export default function CartScreen() {
             >
               <Text style={styles.backButtonText}>Quay lại Trang chủ</Text>
             </TouchableOpacity>
-          </View>
+          </Animatable.View>
         </View>
       ) : (
         <View style={{ flex: 1 }}>
-          <View style={styles.header}>
+          <Animatable.View animation="fadeInDown" style={styles.header}>
             <Text style={styles.headerText}>Giỏ Hàng</Text>
             <View style={styles.cartCount}>
               <Text style={styles.cartCountText}>{cartItems.length}</Text>
             </View>
-          </View>
+          </Animatable.View>
           <FlatList<CartItemType>
             data={cartItems}
             keyExtractor={(item) => item.courseId || Math.random().toString()}
-            renderItem={({ item }) => (
-              <View style={styles.cartItem}>
+            renderItem={({ item, index }) => (
+              <Animatable.View
+                animation="fadeInUp"
+                delay={index * 100}
+                style={styles.cartItem}
+              >
                 <TouchableOpacity
                   style={styles.checkbox}
                   onPress={() => toggleSelection(item.courseId)}
@@ -382,7 +374,7 @@ export default function CartScreen() {
                     size={24}
                     color={
                       selectedCourseIds.includes(item.courseId)
-                        ? "#009990"
+                        ? "#4A00E0"
                         : "#808080"
                     }
                   />
@@ -403,28 +395,30 @@ export default function CartScreen() {
                     <Text style={styles.courseName}>{item.courseName}</Text>
                   </TouchableOpacity>
                   <Text style={styles.coursePrice}>
-                    {item.priceAtPurchase.toFixed(2)} VNĐ
+                    {(item.priceAtPurchase).toFixed(2)} VNĐ
                   </Text>
                   {enrolledCourses.includes(item.courseId) ? (
                     <TouchableOpacity
-                      style={[styles.accessButton]}
+                      style={styles.accessButton}
                       onPress={() => handleAccessCourse(item.courseId)}
                     >
-                      <Text style={styles.accessButtonText}>Truy cập vào khóa học</Text>
+                      <MaterialIcons name="play-circle-outline" size={20} color="#fff" />
+                      <Text style={styles.accessButtonText}>Truy cập khóa học</Text>
                     </TouchableOpacity>
                   ) : (
                     <TouchableOpacity
                       style={styles.removeButton}
                       onPress={() => handleRemoveItem(item.courseId)}
                     >
+                      <MaterialIcons name="delete" size={20} color="#fff" />
                       <Text style={styles.removeButtonText}>Xóa</Text>
                     </TouchableOpacity>
                   )}
                 </View>
-              </View>
+              </Animatable.View>
             )}
             ListEmptyComponent={() => (
-              <View style={styles.emptyContainer}>
+              <Animatable.View animation="fadeIn" style={styles.emptyContainer}>
                 <Image
                   source={require("@/assets/empty_cart.png")}
                   style={styles.emptyImage}
@@ -438,14 +432,14 @@ export default function CartScreen() {
                 >
                   <Text style={styles.shopButtonText}>Khám phá khóa học</Text>
                 </TouchableOpacity>
-              </View>
+              </Animatable.View>
             )}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
           />
           {cartItems.length > 0 && (
-            <View style={styles.footer}>
+            <Animatable.View animation="fadeInUp" style={styles.footer}>
               <Text style={styles.totalText}>
                 Tổng Cộng: {calculateTotalPrice()} VNĐ
               </Text>
@@ -467,7 +461,7 @@ export default function CartScreen() {
                   </Text>
                 )}
               </TouchableOpacity>
-            </View>
+            </Animatable.View>
           )}
         </View>
       )}
@@ -475,12 +469,20 @@ export default function CartScreen() {
   );
 }
 
-// ... styles không đổi
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#333",
+    fontFamily: "Nunito_600SemiBold",
   },
   header: {
     flexDirection: "row",
@@ -490,6 +492,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#E1E2E5",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   headerText: {
     fontSize: 24,
@@ -497,7 +504,7 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   cartCount: {
-    backgroundColor: "#009990",
+    backgroundColor: "#4A00E0",
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -512,6 +519,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    margin: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   successImage: {
     width: 200,
@@ -522,18 +537,20 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 24,
     fontFamily: "Raleway_700Bold",
-    color: "#333",
+    color: "#4A00E0",
+    textAlign: "center",
   },
   successText: {
     fontSize: 16,
     fontFamily: "Nunito_400Regular",
     color: "#575757",
     marginTop: 10,
+    textAlign: "center",
   },
   orderDetails: {
     marginTop: 20,
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#F5F5F5",
     padding: 15,
     borderRadius: 10,
     width: "100%",
@@ -545,7 +562,7 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   backButton: {
-    backgroundColor: "#009990",
+    backgroundColor: "#4A00E0",
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -555,6 +572,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontFamily: "Nunito_600SemiBold",
+    textAlign: "center",
   },
   cartItem: {
     flexDirection: "row",
@@ -575,6 +593,8 @@ const styles = StyleSheet.create({
   },
   courseImageContainer: {
     marginRight: 12,
+    borderRadius: 8,
+    overflow: "hidden",
   },
   courseImage: {
     width: 80,
@@ -603,24 +623,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginTop: 10,
     alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
   },
   removeButtonText: {
     color: "#fff",
     fontSize: 14,
     fontFamily: "Nunito_600SemiBold",
+    marginLeft: 5,
   },
   accessButton: {
-    backgroundColor: "#009990",
+    backgroundColor: "#4A00E0",
     borderRadius: 5,
     paddingVertical: 5,
     paddingHorizontal: 10,
     marginTop: 10,
     alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
   },
   accessButtonText: {
     color: "#fff",
     fontSize: 14,
     fontFamily: "Nunito_600SemiBold",
+    marginLeft: 5,
   },
   emptyContainer: {
     flex: 1,
@@ -641,7 +667,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   shopButton: {
-    backgroundColor: "#009990",
+    backgroundColor: "#4A00E0",
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -672,7 +698,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   checkoutButton: {
-    backgroundColor: "#009990",
+    backgroundColor: "#4A00E0",
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: "center",

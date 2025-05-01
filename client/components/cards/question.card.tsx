@@ -1,3 +1,4 @@
+import { CommentType, CoursesType } from "@/types/courses";
 import { SERVER_URI } from "@/utils/uri";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";

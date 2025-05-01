@@ -22,6 +22,7 @@ import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } fr
 import { Toast } from "react-native-toast-notifications";
 import axios from "axios";
 import { SERVER_URI } from "@/utils/uri";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Định nghĩa các kiểu tại đây
 interface User {
@@ -141,10 +142,56 @@ export default function CourseDetailScreen() {
     if (!courseData) return;
     try {
       await addToCart(courseData);
-      router.push("/(routes)/cart");
+      // Hiển thị thông báo "Thêm sản phẩm thành công" mà không điều hướng
+      Toast.show("Thêm sản phẩm vào giỏ hàng thành công!", {
+        type: "success",
+        placement: "top",
+        duration: 3000,
+      });
     } catch (error: any) {
       console.error("Lỗi khi thêm vào giỏ hàng:", error);
       Toast.show("Không thể thêm vào giỏ hàng", { type: "danger" });
+    }
+  };
+
+  const handleAccessCourse = async () => {
+    if (!courseData) return;
+    if (!checkPurchased) {
+      Toast.show("Bạn chưa mua khóa học này!", { type: "warning" });
+      return;
+    }
+
+    try {
+      const accessToken = await AsyncStorage.getItem("access_token");
+      const refreshToken = await AsyncStorage.getItem("refresh_token");
+
+      if (!accessToken || !refreshToken) {
+        Toast.show("Vui lòng đăng nhập để truy cập khóa học", { type: "warning" });
+        router.push("/(routes)/login");
+        return;
+      }
+
+      await axios.get(`${SERVER_URI}/get-course-content/${courseData._id}`, {
+        headers: {
+          "access-token": accessToken,
+          "refresh-token": refreshToken,
+        },
+      });
+
+      router.push({
+        pathname: "/(routes)/course-access",
+        params: { courseId: courseData._id },
+      });
+    } catch (error: any) {
+      console.error("Lỗi khi truy cập khóa học:", error);
+      if (error.response?.status === 401) {
+        Toast.show("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.", { type: "warning" });
+        await AsyncStorage.removeItem("access_token");
+        await AsyncStorage.removeItem("refresh_token");
+        router.push("/(routes)/login");
+      } else {
+        Toast.show("Bạn không có quyền truy cập khóa học này", { type: "danger" });
+      }
     }
   };
 
@@ -479,12 +526,7 @@ export default function CourseDetailScreen() {
               paddingVertical: 16,
               borderRadius: 4,
             }}
-            onPress={() =>
-              router.push({
-                pathname: "/(routes)/course-access",
-                params: { courseId: courseData._id },
-              })
-            }
+            onPress={handleAccessCourse}
           >
             <Text
               style={{
