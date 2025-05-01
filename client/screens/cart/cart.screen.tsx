@@ -289,7 +289,7 @@ export default function CartScreen() {
   }
 
   return (
-    <LinearGradient colors={["#4A00E0", "#8E2DE2"]} style={styles.container}>
+    <LinearGradient colors={["#009990", "#F6F7F9"]} style={styles.container}>
       {orderSuccess ? (
         <View style={styles.successContainer}>
           <Animatable.Image
@@ -374,7 +374,7 @@ export default function CartScreen() {
                     size={24}
                     color={
                       selectedCourseIds.includes(item.courseId)
-                        ? "#4A00E0"
+                        ? "#009990"
                         : "#808080"
                     }
                   />
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   cartCount: {
-    backgroundColor: "#4A00E0",
+    backgroundColor: "#009990", // Màu xanh lá cây chính
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 24,
     fontFamily: "Raleway_700Bold",
-    color: "#4A00E0",
+    color: "#009990", // Màu xanh lá cây chính
     textAlign: "center",
   },
   successText: {
@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   backButton: {
-    backgroundColor: "#4A00E0",
+    backgroundColor: "#009990", // Màu xanh lá cây chính
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
   accessButton: {
-    backgroundColor: "#4A00E0",
+    backgroundColor: "#009990", // Màu xanh lá cây chính
     borderRadius: 5,
     paddingVertical: 5,
     paddingHorizontal: 10,
@@ -667,7 +667,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   shopButton: {
-    backgroundColor: "#4A00E0",
+    backgroundColor: "#009990", // Màu xanh lá cây chính
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -698,7 +698,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   checkoutButton: {
-    backgroundColor: "#4A00E0",
+    backgroundColor: "#009990", // Màu xanh lá cây chính
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: "center",

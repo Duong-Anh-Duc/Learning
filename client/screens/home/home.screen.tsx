@@ -1,3 +1,4 @@
+// frontend/app/(tabs)/index.tsx
 import SearchInput from "@/components/common/search.input";
 import AllCourses from "@/components/courses/all.courses";
 import Header from "@/components/header/header";
@@ -11,7 +12,7 @@ export default function HomeScreen() {
       style={{ flex: 1, paddingTop: 50 }}
     >
       <Header />
-      <SearchInput homeScreen={true} />
+      <SearchInput homeScreen={true} showFilters={false} />
       <AllCourses />
     </LinearGradient>
   );

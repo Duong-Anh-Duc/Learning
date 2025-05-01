@@ -551,3 +551,23 @@ export const filterCourses = CatchAsyncError(
     }
   }
 );
+export const getCategories = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Lấy danh sách tất cả khóa học và trích xuất danh mục
+      const courses = await CourseModel.find().select("categories");
+      const categories = [...new Set(courses.map((course) => course.categories))].map(
+        (category) => ({
+          title: category,
+        })
+      );
+
+      res.status(200).json({
+        success: true,
+        categories,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 500));
+    }
+  }
+);

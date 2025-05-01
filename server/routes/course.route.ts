@@ -10,6 +10,7 @@ import {
   generateVideoUrl,
   getAdminAllCourses,
   getAllCourses,
+  getCategories,
   getCourseByUser,
   getSingleCourse,
   uploadCourse,
@@ -64,5 +65,6 @@ courseRouter.delete(
   authorizeRoles("admin"),
   deleteCourse
 );
+courseRouter.get("/get-categories", getCategories);
 courseRouter.get("/filter-courses", filterCourses);
 export default courseRouter;
