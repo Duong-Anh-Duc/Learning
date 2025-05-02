@@ -1,15 +1,18 @@
-import { View, Text, ScrollView, Image, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native'
-import { Entypo, Fontisto, Ionicons, SimpleLineIcons, FontAwesome } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
-import { useFonts, Raleway_700Bold, Raleway_600SemiBold } from '@expo-google-fonts/raleway'
-import { Nunito_400Regular, Nunito_600SemiBold, Nunito_500Medium, Nunito_700Bold } from '@expo-google-fonts/nunito'
-import { useState } from 'react'
-import { commonStyles } from '@/styles/common/common.styles'
-import { router } from 'expo-router'
-import { SERVER_URI } from '@/utils/uri'
-import { Toast } from 'react-native-toast-notifications'
+// frontend/app/(routes)/login/index.tsx
+import { useCart } from '@/context/CartContext'; // Thêm import
+import { commonStyles } from '@/styles/common/common.styles';
+import { SERVER_URI } from '@/utils/uri';
+import { Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
+import { Raleway_600SemiBold, Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
+import { FontAwesome, Fontisto, Ionicons, SimpleLineIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from 'axios';
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from 'expo-router';
+import { Entypo } from 'expo-vector-icons';
+import { useState } from 'react';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Toast } from 'react-native-toast-notifications';
 
 const LoginScreen = () => {
   const [isPasswordVisible, setPasswordVisible] = useState(false);
@@ -18,10 +21,12 @@ const LoginScreen = () => {
     email: "",
     password: "",
   });
-  const [required, setRequired] = useState("");
   const [error, setError] = useState({
+    email: "",
     password: "",
   });
+
+  const { fetchCart } = useCart(); // Lấy fetchCart từ CartContext
 
   let [fontsLoaded, fontError] = useFonts({
     Raleway_600SemiBold,
@@ -36,41 +41,57 @@ const LoginScreen = () => {
     return null;
   }
 
-  const handlePasswordValidation = (value: string) => {
-    const password = value;
-    const passwordSpecialCharacter = /(?=.*[!@#$&*])/;
-    const passwordOneNumber = /(?=.*[0-9])/;
-    const passwordSixValue = /(?=.{6,})/;
-
-    if (!passwordSpecialCharacter.test(password)) {
-      setError({
-        ...error,
-        password: "Nhập ít nhất một ký tự đặc biệt",
+  const validateEmail = () => {
+    if (!userInfo.email) {
+      setError((prev) => ({
+        ...prev,
+        email: "Vui lòng nhập email",
+      }));
+      Toast.show("Vui lòng nhập email!", {
+        type: "danger",
+        placement: "top",
+        duration: 3000,
       });
-      setUserInfo({ ...userInfo, password: "" });
-    } else if (!passwordOneNumber.test(password)) {
-      setError({
-        ...error,
-        password: "Nhập ít nhất một số",
-      });
-      setUserInfo({ ...userInfo, password: "" });
-    } else if (!passwordSixValue.test(password)) {
-      setError({
-        ...error,
-        password: "Nhập ít nhất 6 ký tự",
-      });
-      setUserInfo({ ...userInfo, password: "" });
-    } else {
-      setError({
-        ...error,
-        password: "",
-      });
-      setUserInfo({ ...userInfo, password: value });
+      return false;
     }
+    setError((prev) => ({
+      ...prev,
+      email: "",
+    }));
+    return true;
+  };
+
+  const validatePassword = () => {
+    if (!userInfo.password) {
+      setError((prev) => ({
+        ...prev,
+        password: "Vui lòng nhập mật khẩu",
+      }));
+      Toast.show("Vui lòng nhập mật khẩu!", {
+        type: "danger",
+        placement: "top",
+        duration: 3000,
+      });
+      return false;
+    }
+    setError((prev) => ({
+      ...prev,
+      password: "",
+    }));
+    return true;
   };
 
   const handleSignIn = async () => {
     setButtonSpinner(true);
+
+    const isEmailValid = validateEmail();
+    const isPasswordValid = validatePassword();
+
+    if (!isEmailValid || !isPasswordValid) {
+      setButtonSpinner(false);
+      return;
+    }
+
     try {
       const res = await axios.post(`${SERVER_URI}/login`, {
         email: userInfo.email,
@@ -88,11 +109,22 @@ const LoginScreen = () => {
 
       await AsyncStorage.setItem("access_token", accessToken);
       await AsyncStorage.setItem("refresh_token", refreshToken);
+      Toast.show("Đăng nhập thành công!", {
+        type: "success",
+        placement: "top",
+        duration: 3000,
+      });
+
+      // Gọi fetchCart ngay sau khi đăng nhập thành công
+      await fetchCart();
+
       router.push("/(tabs)");
     } catch (error: any) {
-      console.error("Lỗi đăng nhập:", error.message);
-      Toast.show(error.message || "Email hoặc mật khẩu không đúng!", {
+      console.error("Lỗi đăng nhập:", error.response?.data || error.message);
+      Toast.show(error.response?.data?.message || "Email hoặc mật khẩu không đúng!", {
         type: "danger",
+        placement: "top",
+        duration: 3000,
       });
     } finally {
       setButtonSpinner(false);
@@ -100,40 +132,53 @@ const LoginScreen = () => {
   };
 
   return (
-    <LinearGradient colors={["#009990","#F6F7F9"]} style={{flex:1,paddingTop:20}}>
+    <LinearGradient colors={["#009990", "#F6F7F9"]} style={{ flex: 1, paddingTop: 20 }}>
       <ScrollView>
-        <Image style={styles.signInImage} source={require('@/assets/sign-in/sign_in.png')}/>
-        <Text style={[styles.welcomeText,{fontFamily:"Raleway_700Bold"}]}> Chào Mừng Bạn Trở Lại!</Text>
-        <Text style={styles.learningText}> Đăng nhập vào tài khoản EduBridge của bạn</Text>
+        <Image style={styles.signInImage} source={require('@/assets/sign-in/sign_in.png')} />
+        <Text style={[styles.welcomeText, { fontFamily: "Raleway_700Bold" }]}>Chào Mừng Bạn Trở Lại!</Text>
+        <Text style={styles.learningText}>Đăng nhập vào tài khoản EduBridge của bạn</Text>
         <View style={styles.inputContainer}>
           <View>
-            <TextInput 
-            style={[styles.input,{paddingLeft:40}]} 
-            keyboardType='email-address' 
-            value={userInfo.email} 
-            placeholder='abc@gmail.com' 
-            onChangeText={(value)=>setUserInfo({...userInfo,email:value})}/>
-            <Fontisto style={{position:"absolute",left:26,top:17.8}} 
-            name="email" size={20} color={"#A1A1A1"}/>
-            {required && (
-              <View style={commonStyles.errorContainer}>
-               <Entypo name="cross" size={18} color={"red"}/> 
+            <TextInput
+              style={[styles.input, { paddingLeft: 40 }]}
+              keyboardType='email-address'
+              value={userInfo.email}
+              placeholder='Nhập Email'
+              onChangeText={(value) => setUserInfo({ ...userInfo, email: value })}
+              onSubmitEditing={validateEmail}
+              returnKeyType="next"
+            />
+            <Fontisto
+              style={{ position: "absolute", left: 26, top: 17.8 }}
+              name="email"
+              size={20}
+              color={"#A1A1A1"}
+            />
+            {error.email && (
+              <View style={[commonStyles.errorContainer, { top: 70 }]}>
+                <Entypo name="cross" size={18} color={"red"} />
+                <Text style={{ color: "red", fontSize: 11, marginTop: -1 }}>
+                  {error.email}
+                </Text>
               </View>
             )}
-            <View style={{marginTop:15}}>
-              <TextInput style={commonStyles.input}
-              keyboardType='default'
-              secureTextEntry={!isPasswordVisible}
-              defaultValue=''
-              placeholder='**********'
-              onChangeText={handlePasswordValidation}/>
-              <TouchableOpacity style={styles.visibleIcon} onPress={()=>setPasswordVisible(!isPasswordVisible)}>
-              {isPasswordVisible ? (
-                  <Ionicons
-                    name="eye-off-outline"
-                    size={23}
-                    color={"#747474"}
-                  />
+            <View style={{ marginTop: 15 }}>
+              <TextInput
+                style={[styles.input, { paddingLeft: 40 }]}
+                keyboardType='default'
+                secureTextEntry={!isPasswordVisible}
+                value={userInfo.password}
+                placeholder='Mật Khẩu'
+                onChangeText={(value) => setUserInfo({ ...userInfo, password: value })}
+                onSubmitEditing={handleSignIn}
+                returnKeyType="done"
+              />
+              <TouchableOpacity
+                style={styles.visibleIcon}
+                onPress={() => setPasswordVisible(!isPasswordVisible)}
+              >
+                {isPasswordVisible ? (
+                  <Ionicons name="eye-off-outline" size={23} color={"#747474"} />
                 ) : (
                   <Ionicons name="eye-outline" size={23} color={"#747474"} />
                 )}
@@ -154,86 +199,78 @@ const LoginScreen = () => {
               </View>
             )}
           </View>
+          <TouchableOpacity onPress={() => router.push("../(routes)/forgot-password")}>
+            <Text
+              style={[styles.forgotSection, { fontFamily: "Nunito_600SemiBold", color: "blue" }]}
+            >
+              Quên Mật Khẩu?
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity
-              onPress={() => router.push("../(routes)/forgot-password")}
-            >
+            style={{
+              padding: 16,
+              borderRadius: 8,
+              marginHorizontal: 16,
+              backgroundColor: "#009990",
+              marginTop: 15,
+            }}
+            onPress={handleSignIn}
+          >
+            {buttonSpinner ? (
+              <ActivityIndicator size="small" color={"white"} />
+            ) : (
               <Text
-                style={[
-                  styles.forgotSection,
-                  { fontFamily: "Nunito_600SemiBold",color:"blue" },
-                ]}
+                style={{
+                  color: "white",
+                  textAlign: "center",
+                  fontSize: 16,
+                  fontFamily: "Raleway_700Bold",
+                }}
               >
-                Quên Mật Khẩu?
+                Đăng Nhập
               </Text>
+            )}
+          </TouchableOpacity>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              marginTop: 20,
+              gap: 10,
+            }}
+          >
+            <TouchableOpacity>
+              <FontAwesome name="google" size={30} />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={{
-                padding: 16,
-                borderRadius: 8,
-                marginHorizontal: 16,
-                backgroundColor: "#009990",
-                marginTop: 15,
-              }}
-              onPress={handleSignIn}
-            >
-              {buttonSpinner ? (
-                <ActivityIndicator size="small" color={"white"} />
-              ) : (
-                <Text
-                  style={{
-                    color: "white",
-                    textAlign: "center",
-                    fontSize: 16,
-                    fontFamily: "Raleway_700Bold",
-                  }}
-                >
-                  Đăng Nhập
-                </Text>
-              )}
+            <TouchableOpacity>
+              <FontAwesome name="github" size={30} />
             </TouchableOpacity>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                marginTop: 20,
-                gap: 10,
-              }}
-            >
-              <TouchableOpacity>
-                <FontAwesome name="google" size={30} />
-              </TouchableOpacity>
-              <TouchableOpacity>
-                <FontAwesome name="github" size={30} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.signupRedirect}>
-              <Text style={{ fontSize: 18, fontFamily: "Raleway_600SemiBold"}}>
-                Chưa có tài khoản?
-              </Text>
-              <TouchableOpacity
-                onPress={() => router.push("../(routes)/sign-up")}
-              >
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontFamily: "Raleway_600SemiBold",
-                    color: "#009990",
-                    marginLeft: 5,
-                  }}
-                >
-                  Đăng Ký
-                </Text>
-              </TouchableOpacity>
-            </View>
           </View>
-        </ScrollView>
-      </LinearGradient>
-    );
-  }
+          <View style={styles.signupRedirect}>
+            <Text style={{ fontSize: 18, fontFamily: "Raleway_600SemiBold" }}>
+              Chưa có tài khoản?
+            </Text>
+            <TouchableOpacity onPress={() => router.push("../(routes)/sign-up")}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontFamily: "Raleway_600SemiBold",
+                  color: "#009990",
+                  marginLeft: 5,
+                }}
+              >
+                Đăng Ký
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </LinearGradient>
+  );
+};
 
-const styles=StyleSheet.create({
+const styles = StyleSheet.create({
   signInImage: {
     width: "60%",
     height: 250,
@@ -262,7 +299,7 @@ const styles=StyleSheet.create({
     paddingLeft: 35,
     fontSize: 16,
     backgroundColor: "white",
-    color: "#A1A1A1",
+    color: "#333",
   },
   visibleIcon: {
     position: "absolute",
@@ -290,4 +327,4 @@ const styles=StyleSheet.create({
   },
 });
 
-export default LoginScreen
+export default LoginScreen;

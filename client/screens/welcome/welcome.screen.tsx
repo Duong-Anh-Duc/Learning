@@ -1,12 +1,11 @@
-import { onboardingSwiperData } from "@/constants/constants"
-import { commonStyles } from '@/styles/common/common.styles'
-import { styles } from "@/styles/onboarding/onboard"
-import { Nunito_400Regular, Nunito_600SemiBold } from '@expo-google-fonts/nunito'
-import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway'
-import { LinearGradient } from 'expo-linear-gradient'
-import { router } from 'expo-router'
-import { Image, Text, View } from 'react-native'
-import AppIntroSlider from "react-native-app-intro-slider"
+import { onboardingSwiperData } from "@/constants/constants";
+import { commonStyles } from '@/styles/common/common.styles';
+import { Nunito_400Regular, Nunito_600SemiBold } from '@expo-google-fonts/nunito';
+import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import AppIntroSlider from "react-native-app-intro-slider";
 
 const WelcomeIntroScreen = () => {
   let [fontsLoaded, fontError] = useFonts({
@@ -90,12 +89,50 @@ const WelcomeIntroScreen = () => {
           </Text>
         </View>
       )}
-      showSkipButton={false}
+      renderSkipButton={() => (
+        <View style={styles.skipButtonStyle}>
+          <Text
+            style={[styles.skipButtonText, { fontFamily: "Nunito_600SemiBold" }]}
+          >
+            Bỏ qua
+          </Text>
+        </View>
+      )}
+      showSkipButton={true}
       dotStyle={commonStyles.dotStyle}
       bottomButton={true}
       activeDotStyle={commonStyles.activeDotStyle}
     />
   );
 };
+
+const styles = StyleSheet.create({
+  welcomeButtonStyle: {
+    backgroundColor: "#009990",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  buttonText: {
+    color: "white",
+    fontSize: 16,
+  },
+  skipButtonStyle: {
+    position: "absolute",
+    top: 40,
+    right: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 5,
+    backgroundColor: "transparent",
+  },
+  skipButtonText: {
+    color: "#009990",
+    fontSize: 16,
+  },
+});
 
 export default WelcomeIntroScreen;

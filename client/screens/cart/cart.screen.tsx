@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Modal,
   RefreshControl,
   StyleSheet,
   Text,
@@ -39,6 +40,7 @@ export default function CartScreen() {
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [enrolledCourses, setEnrolledCourses] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isModalVisible, setIsModalVisible] = useState(false); // State để kiểm soát modal
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { cartItems, removeFromCart, clearCart, fetchCart } = useCart();
 
@@ -164,14 +166,18 @@ export default function CartScreen() {
     }
   };
 
-  const handlePayment = async () => {
+  const handleShowModal = () => {
     if (selectedCourseIds.length === 0) {
       Toast.show("Vui lòng chọn ít nhất một khóa học để thanh toán", {
         type: "warning",
       });
       return;
     }
+    setIsModalVisible(true); // Hiển thị modal khi nhấn "Thanh Toán"
+  };
 
+  const handlePayment = async () => {
+    setIsModalVisible(false); // Đóng modal sau khi xác nhận
     try {
       setIsLoading(true);
       const accessToken = await AsyncStorage.getItem("access_token");
@@ -450,7 +456,7 @@ export default function CartScreen() {
                     opacity: selectedCourseIds.length === 0 ? 0.5 : 1,
                   },
                 ]}
-                onPress={handlePayment}
+                onPress={handleShowModal} // Hiển thị modal thay vì gọi trực tiếp handlePayment
                 disabled={selectedCourseIds.length === 0 || isLoading}
               >
                 {isLoading ? (
@@ -463,6 +469,52 @@ export default function CartScreen() {
               </TouchableOpacity>
             </Animatable.View>
           )}
+          {/* Modal xác nhận thanh toán */}
+          <Modal
+            animationType="fade"
+            transparent={true}
+            visible={isModalVisible}
+            onRequestClose={() => setIsModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContainer}>
+                <Text style={styles.modalTitle}>Xác nhận thanh toán</Text>
+                <Text style={styles.modalMessage}>
+                  Bạn có chắc chắn muốn thanh toán không?
+                </Text>
+                <FlatList
+                  data={cartItems.filter((item) => selectedCourseIds.includes(item.courseId))}
+                  keyExtractor={(item) => item.courseId}
+                  renderItem={({ item }) => (
+                    <View style={styles.modalCourseItem}>
+                      <Text style={styles.modalCourseName}>{item.courseName}</Text>
+                      <Text style={styles.modalCoursePrice}>
+                        {(item.priceAtPurchase).toFixed(2)} VNĐ
+                      </Text>
+                    </View>
+                  )}
+                  style={styles.modalCourseList}
+                />
+                <Text style={styles.modalTotal}>
+                  Tổng Cộng: {calculateTotalPrice()} VNĐ
+                </Text>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity
+                    style={styles.modalCancelButton}
+                    onPress={() => setIsModalVisible(false)}
+                  >
+                    <Text style={styles.modalCancelText}>Hủy</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.modalConfirmButton}
+                    onPress={handlePayment}
+                  >
+                    <Text style={styles.modalConfirmText}>Xác nhận</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </View>
       )}
     </LinearGradient>
@@ -707,5 +759,96 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontFamily: "Nunito_600SemiBold",
+  },
+  // Styles cho modal
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)", // Nền mờ
+  },
+  modalContainer: {
+    width: "90%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: "Raleway_700Bold",
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  modalMessage: {
+    fontSize: 16,
+    fontFamily: "Nunito_400Regular",
+    color: "#575757",
+    textAlign: "center",
+    marginBottom: 15,
+  },
+  modalCourseList: {
+    maxHeight: 200, // Giới hạn chiều cao danh sách khóa học
+    marginBottom: 15,
+  },
+  modalCourseItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E1E2E5",
+  },
+  modalCourseName: {
+    fontSize: 14,
+    fontFamily: "Nunito_600SemiBold",
+    color: "#333",
+  },
+  modalCoursePrice: {
+    fontSize: 14,
+    fontFamily: "Nunito_400Regular",
+    color: "#575757",
+  },
+  modalTotal: {
+    fontSize: 16,
+    fontFamily: "Nunito_700Bold",
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  modalCancelButton: {
+    backgroundColor: "#FF6347",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    flex: 1,
+    marginRight: 10,
+  },
+  modalCancelText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Nunito_600SemiBold",
+    textAlign: "center",
+  },
+  modalConfirmButton: {
+    backgroundColor: "#009990",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    flex: 1,
+  },
+  modalConfirmText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Nunito_600SemiBold",
+    textAlign: "center",
   },
 });

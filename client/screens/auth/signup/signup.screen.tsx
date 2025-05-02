@@ -1,3 +1,4 @@
+// frontend/app/(routes)/signup/index.tsx
 import { commonStyles } from "@/styles/common/common.styles";
 import { SERVER_URI } from "@/utils/uri";
 import {
@@ -20,7 +21,7 @@ import {
   SimpleLineIcons,
 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from 'axios';
+import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -38,15 +39,20 @@ import { Toast } from "react-native-toast-notifications";
 
 export default function SignUpScreen() {
   const [isPasswordVisible, setPasswordVisible] = useState(false);
+  const [isConfirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [buttonSpinner, setButtonSpinner] = useState(false);
   const [userInfo, setUserInfo] = useState({
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
   const [required, setRequired] = useState("");
   const [error, setError] = useState({
+    name: "",
+    email: "",
     password: "",
+    confirmPassword: "",
   });
 
   let [fontsLoaded, fontError] = useFonts({
@@ -62,60 +68,175 @@ export default function SignUpScreen() {
     return null;
   }
 
-  const handlePasswordValidation = (value: string) => {
-    const password = value;
+  // Kiểm tra ký tự đặc biệt trong tên người dùng
+  const validateName = () => {
+    const specialCharacterRegex = /[!@#$%^&*()+=[\]{};':"\\|,.<>?]/;
+    if (!userInfo.name) {
+      setError((prev) => ({
+        ...prev,
+        name: "Vui lòng nhập tên người dùng",
+      }));
+      return false;
+    } else if (specialCharacterRegex.test(userInfo.name)) {
+      setError((prev) => ({
+        ...prev,
+        name: "Tên người dùng không được chứa ký tự đặc biệt",
+      }));
+      return false;
+    }
+    setError((prev) => ({
+      ...prev,
+      name: "",
+    }));
+    return true;
+  };
+
+  // Kiểm tra định dạng email (không gọi API /registration ở đây)
+  const validateEmail = () => {
+    const specialCharacterRegex = /[^a-zA-Z0-9@._-]/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Regex kiểm tra định dạng email cơ bản
+    if (!userInfo.email) {
+      setError((prev) => ({
+        ...prev,
+        email: "Vui lòng nhập email",
+      }));
+      return false;
+    } else if (specialCharacterRegex.test(userInfo.email)) {
+      setError((prev) => ({
+        ...prev,
+        email: "Email không được chứa ký tự đặc biệt ngoài @, ., _, -",
+      }));
+      return false;
+    } else if (!emailRegex.test(userInfo.email)) {
+      setError((prev) => ({
+        ...prev,
+        email: "Email không hợp lệ",
+      }));
+      return false;
+    }
+    setError((prev) => ({
+      ...prev,
+      email: "",
+    }));
+    return true;
+  };
+
+  const validatePassword = () => {
+    const password = userInfo.password;
     const passwordSpecialCharacter = /(?=.*[!@#$&*])/;
     const passwordOneNumber = /(?=.*[0-9])/;
     const passwordSixValue = /(?=.{6,})/;
 
-    if (!passwordSpecialCharacter.test(password)) {
-      setError({
-        ...error,
+    if (!password) {
+      setError((prev) => ({
+        ...prev,
+        password: "Vui lòng nhập mật khẩu",
+      }));
+      return false;
+    } else if (!passwordSpecialCharacter.test(password)) {
+      setError((prev) => ({
+        ...prev,
         password: "Phải có ít nhất một ký tự đặc biệt",
-      });
-      setUserInfo({ ...userInfo, password: "" });
+      }));
+      return false;
     } else if (!passwordOneNumber.test(password)) {
-      setError({
-        ...error,
+      setError((prev) => ({
+        ...prev,
         password: "Phải có ít nhất một số",
-      });
-      setUserInfo({ ...userInfo, password: "" });
+      }));
+      return false;
     } else if (!passwordSixValue.test(password)) {
-      setError({
-        ...error,
+      setError((prev) => ({
+        ...prev,
         password: "Phải có ít nhất 6 ký tự",
-      });
-      setUserInfo({ ...userInfo, password: "" });
-    } else {
-      setError({
-        ...error,
-        password: "",
-      });
-      setUserInfo({ ...userInfo, password: value });
+      }));
+      return false;
     }
+    setError((prev) => ({
+      ...prev,
+      password: "",
+    }));
+    return true;
+  };
+
+  const validateConfirmPassword = () => {
+    if (!userInfo.confirmPassword) {
+      setError((prev) => ({
+        ...prev,
+        confirmPassword: "Vui lòng nhập lại mật khẩu",
+      }));
+      return false;
+    } else if (userInfo.confirmPassword !== userInfo.password) {
+      setError((prev) => ({
+        ...prev,
+        confirmPassword: "Mật khẩu nhập lại không khớp",
+      }));
+      return false;
+    }
+    setError((prev) => ({
+      ...prev,
+      confirmPassword: "",
+    }));
+    return true;
   };
 
   const handleSignUp = async () => {
     setButtonSpinner(true);
     try {
-      // Kiểm tra dữ liệu đầu vào
-      if (!userInfo.name || !userInfo.email || !userInfo.password) {
-        Toast.show("Vui lòng nhập đầy đủ thông tin!", {
+      // Validate tất cả các trường khi nhấn "Đăng ký"
+      const isNameValid = validateName();
+      const isEmailValid = validateEmail(); // Chỉ kiểm tra định dạng email
+      const isPasswordValid = validatePassword();
+      const isConfirmPasswordValid = validateConfirmPassword();
+
+      // Hiển thị thông báo cụ thể dựa trên lỗi đầu tiên
+      if (!isNameValid) {
+        Toast.show(error.name, {
           type: "danger",
+          placement: "top",
+          duration: 3000,
         });
         setButtonSpinner(false);
         return;
       }
-  
-      console.log("Sending registration request:", userInfo); // Debug log
+      if (!isEmailValid) {
+        Toast.show(error.email, {
+          type: "danger",
+          placement: "top",
+          duration: 3000,
+        });
+        setButtonSpinner(false);
+        return;
+      }
+      if (!isPasswordValid) {
+        Toast.show(error.password, {
+          type: "danger",
+          placement: "top",
+          duration: 3000,
+        });
+        setButtonSpinner(false);
+        return;
+      }
+      if (!isConfirmPasswordValid) {
+        Toast.show(error.confirmPassword, {
+          type: "danger",
+          placement: "top",
+          duration: 3000,
+        });
+        setButtonSpinner(false);
+        return;
+      }
+
+      // Chỉ gọi API nếu tất cả validate đều pass
+      console.log("Sending registration request:", userInfo);
       const res = await axios.post(`${SERVER_URI}/registration`, {
         name: userInfo.name,
         email: userInfo.email,
         password: userInfo.password,
       });
-  
-      console.log("Registration response:", res.data); // Debug log
-  
+
+      console.log("Registration response:", res.data);
+
       await AsyncStorage.setItem("activation_token", res.data.activationToken);
       Toast.show(res.data.message, {
         type: "success",
@@ -124,19 +245,21 @@ export default function SignUpScreen() {
         name: "",
         email: "",
         password: "",
+        confirmPassword: "",
       });
       setButtonSpinner(false);
-  
-      console.log("Navigating to verifyAccount..."); // Debug log
+
+      console.log("Navigating to verifyAccount...");
       router.push("/(routes)/verifyAccount");
     } catch (error: any) {
-      console.error("Error during registration:", error.response?.data || error.message); // Debug log
+      console.error("Error during registration:", error.response?.data || error.message);
       setButtonSpinner(false);
       Toast.show(error.response?.data?.message || "Đăng ký thất bại, vui lòng thử lại!", {
         type: "danger",
       });
     }
   };
+
   return (
     <LinearGradient
       colors={["#009990", "#F6F7F9"]}
@@ -160,9 +283,9 @@ export default function SignUpScreen() {
               keyboardType="default"
               value={userInfo.name}
               placeholder="Tên người dùng"
-              onChangeText={(value) =>
-                setUserInfo({ ...userInfo, name: value })
-              }
+              onChangeText={(value) => setUserInfo({ ...userInfo, name: value })}
+              onSubmitEditing={validateName} // Validate khi nhấn "Done"/"Submit"
+              returnKeyType="next"
             />
             <AntDesign
               style={{ position: "absolute", left: 26, top: 14 }}
@@ -170,16 +293,24 @@ export default function SignUpScreen() {
               size={20}
               color={"#A1A1A1"}
             />
+            {error.name && (
+              <View style={[commonStyles.errorContainer, { top: 70 }]}>
+                <Entypo name="cross" size={18} color={"red"} />
+                <Text style={{ color: "red", fontSize: 11, marginTop: -1 }}>
+                  {error.name}
+                </Text>
+              </View>
+            )}
           </View>
           <View>
             <TextInput
               style={[styles.input, { paddingLeft: 40 }]}
               keyboardType="email-address"
               value={userInfo.email}
-              placeholder="abc@gmail.com"
-              onChangeText={(value) =>
-                setUserInfo({ ...userInfo, email: value })
-              }
+              placeholder="Nhập Email"
+              onChangeText={(value) => setUserInfo({ ...userInfo, email: value })}
+              onSubmitEditing={validateEmail} // Validate khi nhấn "Done"/"Submit"
+              returnKeyType="next"
             />
             <Fontisto
               style={{ position: "absolute", left: 26, top: 17.8 }}
@@ -187,19 +318,24 @@ export default function SignUpScreen() {
               size={20}
               color={"#A1A1A1"}
             />
-            {required && (
-              <View style={commonStyles.errorContainer}>
+            {error.email && (
+              <View style={[commonStyles.errorContainer, { top: 70 }]}>
                 <Entypo name="cross" size={18} color={"red"} />
+                <Text style={{ color: "red", fontSize: 11, marginTop: -1 }}>
+                  {error.email}
+                </Text>
               </View>
             )}
             <View style={{ marginTop: 15 }}>
               <TextInput
-                style={commonStyles.input}
+                style={[styles.input, { paddingLeft: 40 }]}
                 keyboardType="default"
                 secureTextEntry={!isPasswordVisible}
-                defaultValue=""
-                placeholder="********"
-                onChangeText={handlePasswordValidation}
+                value={userInfo.password}
+                placeholder="Mật khẩu"
+                onChangeText={(value) => setUserInfo({ ...userInfo, password: value })}
+                onSubmitEditing={validatePassword} // Validate khi nhấn "Done"/"Submit"
+                returnKeyType="next"
               />
               <TouchableOpacity
                 style={styles.visibleIcon}
@@ -231,66 +367,106 @@ export default function SignUpScreen() {
               </View>
             )}
 
-            <TouchableOpacity
-              style={{
-                padding: 16,
-                borderRadius: 8,
-                marginHorizontal: 16,
-                backgroundColor: "#009990",
-                marginTop: 15,
-              }}
-              onPress={handleSignUp}
-            >
-              {buttonSpinner ? (
-                <ActivityIndicator size="small" color={"white"} />
-              ) : (
-                <Text
-                  style={{
-                    color: "white",
-                    textAlign: "center",
-                    fontSize: 16,
-                    fontFamily: "Raleway_700Bold",
-                  }}
-                >
-                  Đăng ký
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                marginTop: 20,
-                gap: 10,
-              }}
-            >
-              <TouchableOpacity>
-                <FontAwesome name="google" size={30} />
+            <View style={{ marginTop: 15 }}>
+              <TextInput
+                style={[styles.input, { paddingLeft: 40 }]}
+                keyboardType="default"
+                secureTextEntry={!isConfirmPasswordVisible}
+                value={userInfo.confirmPassword}
+                placeholder="Nhập lại mật khẩu"
+                onChangeText={(value) => setUserInfo({ ...userInfo, confirmPassword: value })}
+                onSubmitEditing={handleSignUp} // Gọi handleSignUp khi nhấn "Done"/"Submit"
+                returnKeyType="done"
+              />
+              <TouchableOpacity
+                style={styles.visibleIcon}
+                onPress={() => setConfirmPasswordVisible(!isConfirmPasswordVisible)}
+              >
+                {isConfirmPasswordVisible ? (
+                  <Ionicons
+                    name="eye-off-outline"
+                    size={23}
+                    color={"#747474"}
+                  />
+                ) : (
+                  <Ionicons name="eye-outline" size={23} color={"#747474"} />
+                )}
               </TouchableOpacity>
-              <TouchableOpacity>
-                <FontAwesome name="github" size={30} />
-              </TouchableOpacity>
+              <SimpleLineIcons
+                style={styles.icon2}
+                name="lock"
+                size={20}
+                color={"#A1A1A1"}
+              />
             </View>
-
-            <View style={styles.signupRedirect}>
-              <Text style={{ fontSize: 18, fontFamily: "Raleway_600SemiBold" }}>
-                Bạn đã có tài khoản?
+            {error.confirmPassword && (
+              <View style={[commonStyles.errorContainer, { top: 240 }]}> {/* Điều chỉnh top để hiển thị rõ hơn */}
+                <Entypo name="cross" size={18} color={"red"} />
+                <Text style={{ color: "red", fontSize: 11, marginTop: -1 }}>
+                  {error.confirmPassword}
+                </Text>
+              </View>
+            )}
+          </View>
+          <TouchableOpacity
+            style={{
+              padding: 16,
+              borderRadius: 8,
+              marginHorizontal: 16,
+              backgroundColor: "#009990",
+              marginTop: 50, // Tăng marginTop để tạo không gian cho thông báo lỗi
+            }}
+            onPress={handleSignUp}
+          >
+            {buttonSpinner ? (
+              <ActivityIndicator size="small" color={"white"} />
+            ) : (
+              <Text
+                style={{
+                  color: "white",
+                  textAlign: "center",
+                  fontSize: 16,
+                  fontFamily: "Raleway_700Bold",
+                }}
+              >
+                Đăng ký
               </Text>
-              <TouchableOpacity onPress={() => router.push("/(routes)/login")}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontFamily: "Raleway_600SemiBold",
-                    color: "#009990",
-                    marginLeft: 5,
-                  }}
-                >
-                  Đăng nhập
-                </Text>
-              </TouchableOpacity>
-            </View>
+            )}
+          </TouchableOpacity>
+
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              marginTop: 20,
+              gap: 10,
+            }}
+          >
+            <TouchableOpacity>
+              <FontAwesome name="google" size={30} />
+            </TouchableOpacity>
+            <TouchableOpacity>
+              <FontAwesome name="github" size={30} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.signupRedirect}>
+            <Text style={{ fontSize: 18, fontFamily: "Raleway_600SemiBold" }}>
+              Bạn đã có tài khoản?
+            </Text>
+            <TouchableOpacity onPress={() => router.push("/(routes)/login")}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontFamily: "Raleway_600SemiBold",
+                  color: "#009990",
+                  marginLeft: 5,
+                }}
+              >
+                Đăng nhập
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -327,7 +503,7 @@ const styles = StyleSheet.create({
     paddingLeft: 35,
     fontSize: 16,
     backgroundColor: "white",
-    color: "#A1A1A1",
+    color: "#333",
   },
   visibleIcon: {
     position: "absolute",

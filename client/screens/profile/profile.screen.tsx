@@ -1,5 +1,5 @@
-import useUser from "@/hooks/auth/useUser";
-import { SERVER_URI } from "@/utils/uri";
+// frontend/app/(routes)/profile/index.tsx
+import { useUser } from "@/context/UserContext"; // Cập nhật import
 import {
   Nunito_400Regular,
   Nunito_600SemiBold,
@@ -17,19 +17,13 @@ import {
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from "axios";
-import * as FileSystem from "expo-file-system";
-import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useState } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { ToastProvider } from "react-native-toast-notifications";
 
 export default function ProfileScreen() {
-  const { user, loading, setRefetch } = useUser();
-  const [image, setImage] = useState<any>(null);
-  const [loader, setLoader] = useState(false);
+  const { user, loading, fetchUser } = useUser(); // Sử dụng UserContext
 
   let [fontsLoaded, fontError] = useFonts({
     Raleway_600SemiBold,
@@ -49,49 +43,6 @@ export default function ProfileScreen() {
     router.push("/(routes)/login");
   };
 
-  const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      const base64 = await FileSystem.readAsStringAsync(result.assets[0].uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      setLoader(true);
-      const base64Image = `data:image/jpeg;base64,${base64}`;
-      setImage(base64Image);
-
-      const accessToken = await AsyncStorage.getItem("access_token");
-      const refreshToken = await AsyncStorage.getItem("refresh_token");
-
-      try {
-        const response = await axios.put(
-          `${SERVER_URI}/update-user-avatar`,
-          {
-            avatar: base64Image,
-          },
-          {
-            headers: {
-              "access-token": accessToken,
-              "refresh-token": refreshToken,
-            },
-          }
-        );
-        if (response.data) {
-          setRefetch(true);
-          setLoader(false);
-        }
-      } catch (error) {
-        setLoader(false);
-        console.log(error);
-      }
-    }
-  };
-
   return (
     <ToastProvider>
       <LinearGradient
@@ -100,33 +51,15 @@ export default function ProfileScreen() {
       >
         <ScrollView>
           <View style={{ flexDirection: "row", justifyContent: "center" }}>
-            <View style={{ position: "relative" }}>
+            <View>
               <Image
                 source={{
                   uri:
-                    image ||
                     user?.avatar?.url ||
                     "https://res.cloudinary.com/dshp9jnuy/image/upload/v1665822253/avatars/nrxsg8sd9iy10bbsoenn.png",
                 }}
                 style={{ width: 90, height: 90, borderRadius: 100 }}
               />
-              <TouchableOpacity
-                style={{
-                  position: "absolute",
-                  bottom: 5,
-                  right: 0,
-                  width: 30,
-                  height: 30,
-                  backgroundColor: "#f5f5f5",
-                  borderRadius: 100,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-                onPress={pickImage}
-              >
-                <Ionicons name="camera-outline" size={25} />
-              </TouchableOpacity>
             </View>
           </View>
           <Text
@@ -156,6 +89,7 @@ export default function ProfileScreen() {
                 justifyContent: "space-between",
                 marginBottom: 20,
               }}
+              onPress={() => router.push("/(routes)/profile-details")}
             >
               <View
                 style={{
@@ -197,9 +131,7 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity>
-                <AntDesign name="right" size={26} color={"#CBD5E0"} />
-              </TouchableOpacity>
+              <AntDesign name="right" size={26} color={"#CBD5E0"} />
             </TouchableOpacity>
             <TouchableOpacity
               style={{
@@ -250,9 +182,58 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity>
-                <AntDesign name="right" size={26} color={"#CBD5E0"} />
-              </TouchableOpacity>
+              <AntDesign name="right" size={26} color={"#CBD5E0"} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 20,
+              }}
+              onPress={() => router.push("/(routes)/change-password")}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  columnGap: 30,
+                }}
+              >
+                <View
+                  style={{
+                    borderWidth: 2,
+                    borderColor: "#dde2ec",
+                    padding: 15,
+                    borderRadius: 100,
+                    width: 55,
+                    height: 55,
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    style={{ alignSelf: "center" }}
+                    name="lock-reset"
+                    size={20}
+                    color={"black"}
+                  />
+                </View>
+                <View>
+                  <Text
+                    style={{ fontSize: 16, fontFamily: "Nunito_700Bold" }}
+                  >
+                    Đổi Mật Khẩu
+                  </Text>
+                  <Text
+                    style={{
+                      color: "#575757",
+                      fontFamily: "Nunito_400Regular",
+                    }}
+                  >
+                    Thay đổi mật khẩu của bạn
+                  </Text>
+                </View>
+              </View>
+              <AntDesign name="right" size={26} color={"#CBD5E0"} />
             </TouchableOpacity>
             <TouchableOpacity
               style={{
@@ -287,17 +268,15 @@ export default function ProfileScreen() {
                     color={"black"}
                   />
                 </View>
-                <TouchableOpacity onPress={() => logoutHandler()}>
+                <View>
                   <Text
                     style={{ fontSize: 16, fontFamily: "Nunito_700Bold" }}
                   >
                     Đăng Xuất
                   </Text>
-                </TouchableOpacity>
+                </View>
               </View>
-              <TouchableOpacity>
-                <AntDesign name="right" size={26} color={"#CBD5E0"} />
-              </TouchableOpacity>
+              <AntDesign name="right" size={26} color={"#CBD5E0"} />
             </TouchableOpacity>
           </View>
         </ScrollView>

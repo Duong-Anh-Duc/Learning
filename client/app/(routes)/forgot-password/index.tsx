@@ -112,15 +112,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: "center",
     marginBottom: 20,
+    color: "#333", // Đồng bộ màu chữ
   },
   input: {
     width: "100%",
-    height: 50,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
+    height: 55, // Đồng bộ với LoginScreen
+    borderRadius: 8,
     padding: 10,
     marginBottom: 20,
+    backgroundColor: "white", // Đồng bộ màu nền
+    color: "#333", // Đồng bộ màu chữ
+    fontSize: 16,
   },
   button: {
     backgroundColor: "#009990",
@@ -143,5 +145,8 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     fontSize: 16,
   },
-  backText: { fontSize: 16 },
+  backText: {
+    fontSize: 16,
+    color: "#575757", // Đồng bộ màu chữ với learningText
+  },
 });

@@ -12,7 +12,7 @@ export const createLayout = CatchAsyncError(
       const { type } = req.body;
       const isTypeExist = await LayoutModel.findOne({ type });
       if (isTypeExist) {
-        return next(new ErrorHandler(`${type} already exist`, 400));
+        return next(new ErrorHandler(`${type} đã tồn tại`, 400));
       }
       if (type === "Banner") {
         const { image, title, subTitle } = req.body;
