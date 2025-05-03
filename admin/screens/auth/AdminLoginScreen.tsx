@@ -81,32 +81,33 @@ const AdminLoginScreen = () => {
     return true;
   };
 
-  const handleSignIn = async () => {
+ // screens/auth/AdminLoginScreen.tsx (trích đoạn)
+const handleSignIn = async () => {
     setButtonSpinner(true);
-
+  
     const isEmailValid = validateEmail();
     const isPasswordValid = validatePassword();
-
+  
     if (!isEmailValid || !isPasswordValid) {
       setButtonSpinner(false);
       return;
     }
-
+  
     try {
       const res = await api.post(`/login`, {
         email: userInfo.email,
         password: userInfo.password,
       });
-
+  
       const { accessToken, refreshToken, user } = res.data;
-
+  
       if (!accessToken) {
         throw new Error("Thiếu accessToken trong phản hồi");
       }
       if (!refreshToken) {
         throw new Error("Thiếu refreshToken trong phản hồi");
       }
-
+  
       if (user.role !== ROLES.ADMIN) {
         Toast.show("Bạn không có quyền truy cập khu vực Admin!", {
           type: "danger",
@@ -116,15 +117,15 @@ const AdminLoginScreen = () => {
         setButtonSpinner(false);
         return;
       }
-
+  
       setAuth(accessToken, refreshToken, user);
       Toast.show("Đăng nhập thành công!", {
         type: "success",
         placement: "top",
         duration: 3000,
       });
-
-      router.push("/(admin)/dashboard");
+  
+      router.push("/(admin)/dashboard"); // Điều hướng đến (admin)/dashboard sau khi đăng nhập
     } catch (error: any) {
       console.error("Lỗi đăng nhập:", error.response?.data || error.message);
       Toast.show(error.response?.data?.message || "Email hoặc mật khẩu không đúng!", {

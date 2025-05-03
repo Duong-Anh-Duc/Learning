@@ -1,10 +1,10 @@
-// screens/dashboard/DashboardScreen.tsx
+// app/(admin)/dashboard/index.tsx
 import { useAuth } from '@/context/AuthContext';
 import { dashboardStyles } from '@/styles/dashboard/dashboard.styles';
 import api from '@/utils/api';
 import { Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
 import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Toast } from 'react-native-toast-notifications';
@@ -16,6 +16,7 @@ const DashboardScreen = () => {
   });
   const [loading, setLoading] = useState(true);
   const { user, logout } = useAuth();
+  const navigation = useNavigation();
 
   let [fontsLoaded, fontError] = useFonts({
     Raleway_700Bold,
@@ -24,7 +25,12 @@ const DashboardScreen = () => {
     Nunito_700Bold,
   });
 
-  // Di chuyển useEffect lên trước early return
+  useEffect(() => {
+    navigation.setOptions({
+      title: "Admin Dashboard",
+    });
+  }, [navigation]);
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -55,7 +61,6 @@ const DashboardScreen = () => {
     }
   }, [user]);
 
-  // Early return sau khi đã gọi tất cả Hooks
   if (!fontsLoaded && !fontError) {
     return null;
   }

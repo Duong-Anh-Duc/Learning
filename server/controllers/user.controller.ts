@@ -146,12 +146,11 @@ interface ILoginRequest {
   password: string;
 }
 
+// controllers/user.controller.ts
 export const loginUser = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
-    console.log("OK");
     try {
       const { email, password } = req.body as ILoginRequest;
-      console.log(email, password);
       if (!email || !password) {
         return next(new ErrorHandler("Vui lòng nhập email và mật khẩu", 400));
       }
@@ -160,6 +159,11 @@ export const loginUser = CatchAsyncError(
 
       if (!user) {
         return next(new ErrorHandler("Email hoặc mật khẩu không hợp lệ", 400));
+      }
+
+      // Kiểm tra trạng thái ban
+      if (user.isBanned) {
+        return next(new ErrorHandler("Tài khoản của bạn đã bị khóa!", 403));
       }
 
       const isPasswordMatch = await user.comparePassword(password);
@@ -589,6 +593,33 @@ export const getUserCourses = CatchAsyncError(
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 500));
+    }
+  }
+);
+// controllers/user.controller.ts
+export const banUser = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const { isBanned } = req.body; // true để ban, false để bỏ ban
+
+      const user = await userModel.findById(id);
+      if (!user) {
+        return next(new ErrorHandler("Người dùng không tồn tại", 404));
+      }
+
+      user.isBanned = isBanned;
+      await user.save();
+
+      // Cập nhật Redis
+      await redis.set(id, JSON.stringify(user));
+
+      res.status(200).json({
+        success: true,
+        message: isBanned ? "Khóa người dùng thành công!" : "Bỏ khóa người dùng thành công!",
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
     }
   }
 );

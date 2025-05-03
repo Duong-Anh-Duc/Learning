@@ -4,7 +4,7 @@ import { Nunito_400Regular, Nunito_600SemiBold } from '@expo-google-fonts/nunito
 import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Image, Text, View, StyleSheet } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import AppIntroSlider from "react-native-app-intro-slider";
 
 const WelcomeIntroScreen = () => {

@@ -94,7 +94,7 @@ export const createMobileOrder = CatchAsyncError(
         courses: coursesInCart,
         payment_info: formattedPaymentInfo,
         totalPrice,
-        status: formattedPaymentInfo.status === "succeeded" ? "Hoàn Thành" : "Thất Bại",
+        status: formattedPaymentInfo.status === "succeeded" ? "Completed" : "Failed", // Sửa ở đây
       });
 
       console.log("Đơn hàng đã được tạo:", order);

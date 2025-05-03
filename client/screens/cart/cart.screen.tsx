@@ -335,7 +335,7 @@ export default function CartScreen() {
                 : "N/A"}
             </Text>
             <Text style={styles.orderText}>
-              Bạn sẽ nhận được email xác nhận!
+              Bạn sẽ nhận được email thông báo!
             </Text>
           </Animatable.View>
           <Animatable.View animation="fadeInUp">

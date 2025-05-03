@@ -1,9 +1,8 @@
-import { styles } from '@/styles/onboarding/onboard';
 import { Nunito_400Regular, Nunito_700Bold } from '@expo-google-fonts/nunito';
 import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'; // Thêm StyleSheet
 
 const OnBoardingScreen = () => {
   let [fontsLoaded, fontError] = useFonts({
@@ -72,5 +71,61 @@ const OnBoardingScreen = () => {
     </LinearGradient>
   );
 };
+
+// Định nghĩa styles cục bộ
+const styles = StyleSheet.create({
+  firstContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 100,
+    height: 100,
+  },
+  titleWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  titleText: {
+    fontSize: 24,
+    color: '#000',
+  },
+  titleTextShape1: {
+    width: 20,
+    height: 20,
+    marginRight: 10,
+  },
+  titleTextShape2: {
+    width: 20,
+    height: 20,
+    marginLeft: 10,
+  },
+  titleShape3: {
+    width: 30,
+    height: 30,
+    marginBottom: 10,
+  },
+  dscpWrapper: {
+    marginVertical: 20,
+    alignItems: 'center',
+  },
+  dscpText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+  },
+  buttonWrapper: {
+    backgroundColor: '#009990',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+  },
+});
 
 export default OnBoardingScreen;
