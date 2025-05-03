@@ -1,5 +1,4 @@
-//import { styles } from '@/styles/onboarding/onboard';
-import styles from "@/styles/onboarding/onboard";
+import { styles } from '@/styles/onboarding/onboard';
 import { Nunito_400Regular, Nunito_700Bold } from '@expo-google-fonts/nunito';
 import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
 import { LinearGradient } from 'expo-linear-gradient';
