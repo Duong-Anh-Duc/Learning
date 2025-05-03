@@ -2,13 +2,14 @@
 import { CategoryType, CoursesType } from "@/types/courses";
 import { SERVER_URI } from "@/utils/uri";
 import { Nunito_700Bold, useFonts } from "@expo-google-fonts/nunito";
-import { AntDesign } from "@expo/vector-icons";
+import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import axios from "axios";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   FlatList,
   Image,
+  Modal,
   StyleSheet,
   Text,
   TextInput,
@@ -20,18 +21,24 @@ import { widthPercentageToDP } from "react-native-responsive-screen";
 import CourseCard from "../cards/course.card";
 
 export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: boolean; showFilters?: boolean }) {
-  const [value, setValue] = useState(""); // Tìm kiếm theo tên
+  const [value, setValue] = useState("");
+  const [suggestions, setSuggestions] = useState<CoursesType[]>([]);
   const [courses, setCourses] = useState<CoursesType[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<CoursesType[]>([]);
   const [categories, setCategories] = useState<CategoryType[]>([]);
-  const [open, setOpen] = useState(false); // Trạng thái mở/đóng dropdown
+  const [openCategory, setOpenCategory] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const [categoryItems, setCategoryItems] = useState<{ label: string; value: string }[]>([]);
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
+  const [openSort, setOpenSort] = useState(false);
+  const [sortOrder, setSortOrder] = useState("");
+  const [sortItems] = useState([
+    { label: "Không sắp xếp", value: "" },
+    { label: "Giá: Tăng dần", value: "asc" },
+    { label: "Giá: Giảm dần", value: "desc" },
+  ]);
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
 
   useEffect(() => {
-    // Lấy danh sách khóa học
     const fetchCourses = async () => {
       try {
         const response = await axios.get(`${SERVER_URI}/get-courses`);
@@ -44,13 +51,12 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
       }
     };
 
-    // Lấy danh sách danh mục
     const fetchCategories = async () => {
       try {
         const response = await axios.get(`${SERVER_URI}/get-categories`);
         const fetchedCategories: CategoryType[] = response.data?.categories || [];
         setCategories(fetchedCategories);
-    
+
         const items = [
           { label: "Tất cả", value: "Tất cả" },
           ...fetchedCategories.map((category) => ({
@@ -71,32 +77,75 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
   }, []);
 
   useEffect(() => {
-    const filterCourses = async () => {
-      try {
-        // Chuẩn bị các tham số lọc
-        const params: any = {};
-        if (value) params.name = value;
-        if (selectedCategory !== "Tất cả") params.category = selectedCategory;
-        if (minPrice) params.minPrice = parseFloat(minPrice);
-        if (maxPrice) params.maxPrice = parseFloat(maxPrice);
+    if (value.trim() === "") {
+      setSuggestions([]);
+    } else {
+      const filteredSuggestions = courses.filter((course) =>
+        course.name.toLowerCase().includes(value.toLowerCase())
+      );
+      setSuggestions(filteredSuggestions);
+    }
+  }, [value, courses]);
 
-        // Gọi API filter-courses
+  // Cập nhật kết quả khi bộ lọc thay đổi
+  useEffect(() => {
+    const applyFilters = async () => {
+      try {
+        const params: any = {};
+        if (value.trim()) {
+          params.name = value.trim();
+        }
+        if (selectedCategory !== "Tất cả") {
+          params.categories = selectedCategory;
+        }
+        if (sortOrder) {
+          params.sortOrder = sortOrder;
+        }
+
         const response = await axios.get(`${SERVER_URI}/filter-courses`, { params });
         const filtered = response.data.courses || [];
 
-        if (homeScreen && value === "") {
+        if (homeScreen && value.trim() === "" && selectedCategory === "Tất cả" && !sortOrder) {
           setFilteredCourses([]);
         } else {
           setFilteredCourses(filtered);
         }
       } catch (error) {
-        console.log("Error filtering courses:", error);
+        console.log("Error applying filters:", error);
         setFilteredCourses([]);
       }
     };
 
-    filterCourses();
-  }, [value, selectedCategory, minPrice, maxPrice, courses]);
+    applyFilters();
+  }, [selectedCategory, sortOrder]); // Lắng nghe thay đổi của selectedCategory và sortOrder
+
+  const handleSearch = async () => {
+    try {
+      const params: any = {};
+      if (value.trim()) {
+        params.name = value.trim();
+      }
+      if (selectedCategory !== "Tất cả") {
+        params.categories = selectedCategory;
+      }
+      if (sortOrder) {
+        params.sortOrder = sortOrder;
+      }
+
+      const response = await axios.get(`${SERVER_URI}/filter-courses`, { params });
+      const filtered = response.data.courses || [];
+
+      if (homeScreen && value.trim() === "") {
+        setFilteredCourses([]);
+      } else {
+        setFilteredCourses(filtered);
+      }
+      setSuggestions([]);
+    } catch (error) {
+      console.log("Error filtering courses:", error);
+      setFilteredCourses([]);
+    }
+  };
 
   let [fontsLoaded, fontError] = useFonts({
     Nunito_700Bold,
@@ -138,10 +187,31 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
     </TouchableOpacity>
   );
 
+  const renderSuggestionItem = ({ item }: { item: CoursesType }) => (
+    <TouchableOpacity
+      style={{
+        backgroundColor: "#fff",
+        padding: 10,
+        width: widthPercentageToDP("90%"),
+        marginLeft: "1.5%",
+        flexDirection: "row",
+        borderBottomWidth: 1,
+        borderBottomColor: "#E1E2E5",
+      }}
+      onPress={() => {
+        setValue(item.name);
+        setSuggestions([]);
+        handleSearch();
+      }}
+    >
+      <Text style={{ fontSize: 14 }}>{item.name}</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <View>
       <View style={styles.filteringContainer}>
-        <View style={styles.searchContainer}>
+        <View style={[styles.searchContainer, { width: widthPercentageToDP("80%") }]}>
           <TextInput
             style={[styles.input, { fontFamily: "Nunito_700Bold" }]}
             placeholder="Tìm kiếm"
@@ -151,52 +221,86 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
           />
           <TouchableOpacity
             style={styles.searchIconContainer}
-            onPress={() => router.push("/(tabs)/search")}
+            onPress={handleSearch}
           >
             <AntDesign name="search1" size={20} color={"#fff"} />
           </TouchableOpacity>
         </View>
+        {showFilters && (
+          <TouchableOpacity
+            style={styles.filterIconContainer}
+            onPress={() => setIsFilterModalVisible(true)}
+          >
+            <MaterialIcons name="more-vert" size={24} color="#333" />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {showFilters && (
-        <>
-          {/* Dropdown chọn danh mục */}
-          <View style={styles.pickerContainer}>
-            <DropDownPicker
-              open={open}
-              value={selectedCategory}
-              items={categoryItems}
-              setOpen={setOpen}
-              setValue={setSelectedCategory}
-              setItems={setCategoryItems}
-              placeholder="Chọn danh mục"
-              containerStyle={styles.dropdownContainer}
-              style={styles.dropdown}
-              dropDownContainerStyle={styles.dropDownStyle}
-              textStyle={styles.dropdownText}
-              placeholderStyle={styles.dropdownPlaceholder}
-            />
-          </View>
-
-          {/* Khoảng giá */}
-          <View style={styles.priceFilterContainer}>
-            <TextInput
-              style={styles.priceInput}
-              placeholder="Giá tối thiểu (VNĐ)"
-              value={minPrice}
-              onChangeText={setMinPrice}
-              keyboardType="numeric"
-            />
-            <TextInput
-              style={styles.priceInput}
-              placeholder="Giá tối đa (VNĐ)"
-              value={maxPrice}
-              onChangeText={setMaxPrice}
-              keyboardType="numeric"
-            />
-          </View>
-        </>
+      {suggestions.length > 0 && (
+        <FlatList
+          data={suggestions}
+          keyExtractor={(item: CoursesType) => item._id}
+          renderItem={renderSuggestionItem}
+          style={styles.suggestionList}
+        />
       )}
+
+      {/* Modal bộ lọc */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isFilterModalVisible}
+        onRequestClose={() => setIsFilterModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Bộ Lọc</Text>
+
+            {/* Dropdown chọn danh mục */}
+            <View style={[styles.pickerContainer, { zIndex: 1000 }]}>
+              <DropDownPicker
+                open={openCategory}
+                value={selectedCategory}
+                items={categoryItems}
+                setOpen={setOpenCategory}
+                setValue={setSelectedCategory}
+                setItems={setCategoryItems}
+                placeholder="Chọn danh mục"
+                containerStyle={styles.dropdownContainer}
+                style={styles.dropdown}
+                dropDownContainerStyle={styles.dropDownStyle}
+                textStyle={styles.dropdownText}
+                placeholderStyle={styles.dropdownPlaceholder}
+              />
+            </View>
+
+            {/* Dropdown chọn sắp xếp theo giá */}
+            <View style={[styles.pickerContainer, { zIndex: 900 }]}>
+              <DropDownPicker
+                open={openSort}
+                value={sortOrder}
+                items={sortItems}
+                setOpen={setOpenSort}
+                setValue={setSortOrder}
+                setItems={() => {}}
+                placeholder="Sắp xếp theo giá"
+                containerStyle={styles.dropdownContainer}
+                style={styles.dropdown}
+                dropDownContainerStyle={styles.dropDownStyle}
+                textStyle={styles.dropdownText}
+                placeholderStyle={styles.dropdownPlaceholder}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setIsFilterModalVisible(false)}
+            >
+              <Text style={styles.closeButtonText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <View style={{ paddingHorizontal: 10 }}>
         <FlatList
@@ -209,21 +313,17 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
           }
         />
       </View>
-      {!homeScreen && (
-        <>
-          {filteredCourses?.length === 0 && (
-            <Text
-              style={{
-                textAlign: "center",
-                paddingTop: 50,
-                fontSize: 20,
-                fontWeight: "600",
-              }}
-            >
-              Không có dữ liệu để hiển thị!
-            </Text>
-          )}
-        </>
+      {!homeScreen && filteredCourses?.length === 0 && value.trim() !== "" && (
+        <Text
+          style={{
+            textAlign: "center",
+            paddingTop: 50,
+            fontSize: 20,
+            fontWeight: "600",
+          }}
+        >
+          Không có dữ liệu để hiển thị!
+        </Text>
       )}
     </View>
   );
@@ -238,7 +338,6 @@ export const styles = StyleSheet.create({
     marginVertical: 10,
   },
   searchContainer: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "white",
@@ -258,6 +357,9 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 4,
   },
+  filterIconContainer: {
+    padding: 10,
+  },
   input: {
     flex: 1,
     fontSize: 14,
@@ -265,10 +367,44 @@ export const styles = StyleSheet.create({
     paddingVertical: 10,
     height: 48,
   },
-  pickerContainer: {
+  suggestionList: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
     marginHorizontal: 16,
-    marginBottom: 10,
-    zIndex: 1000, // Đảm bảo dropdown hiển thị trên các thành phần khác
+    maxHeight: 200,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContainer: {
+    width: widthPercentageToDP("80%"),
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: "Nunito_700Bold",
+    color: "#333",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  pickerContainer: {
+    marginBottom: 20,
+    zIndex: 1000,
   },
   dropdownContainer: {
     height: 50,
@@ -298,26 +434,16 @@ export const styles = StyleSheet.create({
     fontFamily: "Nunito_600SemiBold",
     color: "#C67cc",
   },
-  priceFilterContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginHorizontal: 16,
-    marginBottom: 10,
-  },
-  priceInput: {
-    backgroundColor: "#fff",
+  closeButton: {
+    backgroundColor: "#009990",
     borderRadius: 8,
-    padding: 10,
-    width: "48%",
+    paddingVertical: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  closeButtonText: {
+    color: "#fff",
     fontSize: 16,
-    fontFamily: "Nunito_400Regular",
-    borderWidth: 1,
-    borderColor: "#E1E2E5",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    color: "#333",
+    fontFamily: "Nunito_600SemiBold",
   },
 });

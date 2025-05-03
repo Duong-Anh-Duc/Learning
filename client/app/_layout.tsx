@@ -12,8 +12,9 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { ActivityIndicator, LogBox, Text, View } from "react-native";
 import "react-native-reanimated";
-import { ToastProvider } from "react-native-toast-notifications"; // Thêm import
+import { ToastProvider } from "react-native-toast-notifications";
 import { CartProvider } from "../context/CartContext";
+import { UserProvider } from "../context/UserContext";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -66,57 +67,65 @@ export default function RootLayout() {
 
   return (
     <ToastProvider>
-      <CartProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(routes)/welcome-intro/index" />
-          <Stack.Screen name="(routes)/login/index" />
-          <Stack.Screen name="(routes)/sign-up/index" />
-          <Stack.Screen name="(routes)/forgot-password/index" />
-          <Stack.Screen name="(routes)/verify-reset-password/index" />
-          <Stack.Screen name="(routes)/verifyAccount/index" />
-          <Stack.Screen
-            name="(routes)/course-details/index"
-            options={{
-              headerShown: true,
-              title: "Chi Tiết Khóa Học",
-              headerBackTitle: "Quay Lại",
-            }}
-          />
-          <Stack.Screen
-            name="(routes)/cart/index"
-            options={{
-              headerShown: true,
-              title: "Giỏ Hàng",
-              headerBackTitle: "Quay Lại",
-            }}
-          />
-          <Stack.Screen
-            name="(routes)/profile-details/index"
-            options={{
-              headerShown: true,
-              title: "Chi Tiết Hồ Sơ",
-              headerBackTitle: "Quay Lại",
-            }}
-          />
-          <Stack.Screen
-            name="(routes)/course-access/index"
-            options={{
-              headerShown: true,
-              title: "Bài Giảng Khóa Học",
-              headerBackTitle: "Quay Lại",
-            }}
-          />
-          <Stack.Screen
-            name="(routes)/enrolled-courses/index"
-            options={{
-              headerShown: true,
-              title: "Khóa Học Đã Đăng Ký",
-              headerBackTitle: "Quay Lại",
-            }}
-          />
-        </Stack>
-      </CartProvider>
+      <UserProvider>
+        <CartProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(routes)/welcome-intro/index" />
+            <Stack.Screen name="(routes)/login/index" />
+            <Stack.Screen name="(routes)/sign-up/index" />
+            <Stack.Screen name="(routes)/forgot-password/index" />
+            <Stack.Screen name="(routes)/verify-reset-password/index" />
+            <Stack.Screen name="(routes)/verifyAccount/index" />
+            <Stack.Screen
+              name="(routes)/course-details/index"
+              options={{
+                headerShown: true,
+                title: "Chi Tiết Khóa Học",
+                headerBackTitle: "Quay Lại",
+              }}
+            />
+            <Stack.Screen
+              name="(routes)/cart/index"
+              options={{
+                headerShown: true,
+                title: "Giỏ Hàng",
+                headerBackTitle: "Quay Lại",
+              }}
+            />
+            <Stack.Screen
+              name="(routes)/profile-details/index"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="(routes)/course-access/index"
+              options={{
+                headerShown: true,
+                title: "Truy cập Khóa Học",
+                headerBackTitle: "Quay Lại",
+              }}
+            />
+            <Stack.Screen
+              name="(routes)/lesson/index"
+              options={{
+                headerShown: true,
+                title: "Bài Giảng",
+                headerBackTitle: "Quay Lại",
+              }}
+            />
+            <Stack.Screen
+              name="(routes)/enrolled-courses/index"
+              options={{
+                headerShown: true,
+                title: "Khóa Học Đã Đăng Ký",
+                headerBackTitle: "Quay Lại",
+              }}
+            />
+          </Stack>
+        </CartProvider>
+      </UserProvider>
     </ToastProvider>
   );
 }

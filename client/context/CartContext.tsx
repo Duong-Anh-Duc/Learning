@@ -4,7 +4,7 @@ import { SERVER_URI } from "@/utils/uri";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { router } from "expo-router";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useState } from "react";
 import { Toast } from "react-native-toast-notifications";
 
 type CartItemType = {
@@ -88,6 +88,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       const refreshToken = await AsyncStorage.getItem("refresh_token");
 
       if (!accessToken || !refreshToken) {
+        Toast.show("Vui lòng đăng nhập để thực hiện hành động này", { type: "warning" });
+        router.push("/(routes)/login");
         throw new Error("No tokens available");
       }
 
@@ -115,15 +117,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       setCartItems(newCartItems);
     } catch (error: any) {
       console.error("Lỗi khi lấy giỏ hàng:", error);
-      Toast.show("Không thể lấy giỏ hàng. Vui lòng thử lại sau.", { type: "danger" });
+      if (error.message !== "No tokens available") {
+        Toast.show("Không thể lấy giỏ hàng. Vui lòng thử lại sau.", { type: "danger" });
+      }
     } finally {
       setIsFetching(false);
     }
   };
-
-  useEffect(() => {
-    fetchCart();
-  }, []);
 
   const addToCart = async (course: CoursesType) => {
     if (isFetching) return;
@@ -140,9 +140,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       Toast.show("Đã thêm vào giỏ hàng!", { type: "success" });
     } catch (error: any) {
       console.error("Lỗi khi thêm vào giỏ hàng:", error);
-      Toast.show(error.response?.data?.message || "Không thể thêm vào giỏ hàng", {
-        type: "danger",
-      });
+      if (error.message !== "No tokens available") {
+        Toast.show(error.response?.data?.message || "Không thể thêm vào giỏ hàng", {
+          type: "danger",
+        });
+      }
     } finally {
       setIsFetching(false);
     }
@@ -163,9 +165,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       Toast.show("Đã xóa khỏi giỏ hàng!", { type: "success" });
     } catch (error: any) {
       console.error("Lỗi khi xóa khỏi giỏ hàng:", error);
-      Toast.show(error.response?.data?.message || "Không thể xóa khỏi giỏ hàng", {
-        type: "danger",
-      });
+      if (error.message !== "No tokens available") {
+        Toast.show(error.response?.data?.message || "Không thể xóa khỏi giỏ hàng", {
+          type: "danger",
+        });
+      }
     } finally {
       setIsFetching(false);
     }
@@ -181,9 +185,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       Toast.show("Đã xóa toàn bộ giỏ hàng!", { type: "success" });
     } catch (error: any) {
       console.error("Lỗi khi xóa giỏ hàng:", error);
-      Toast.show(error.response?.data?.message || "Không thể xóa giỏ hàng", {
-        type: "danger",
-      });
+      if (error.message !== "No tokens available") {
+        Toast.show(error.response?.data?.message || "Không thể xóa giỏ hàng", {
+          type: "danger",
+        });
+      }
     } finally {
       setIsFetching(false);
     }

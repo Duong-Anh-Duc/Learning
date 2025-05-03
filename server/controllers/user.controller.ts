@@ -1,3 +1,5 @@
+// ... (các import giữ nguyên)
+
 import cloudinary from "cloudinary";
 import ejs from "ejs";
 import { NextFunction, Request, Response } from "express";
@@ -15,7 +17,7 @@ import { sendToken } from "../utils/jwt";
 import { redis } from "../utils/redis";
 import sendMail from "../utils/sendMail";
 
-// register user
+// Đăng ký người dùng
 interface IRegistrationBody {
   name: string;
   email: string;
@@ -30,7 +32,7 @@ export const registrationUser = CatchAsyncError(
 
       const isEmailExist = await userModel.findOne({ email });
       if (isEmailExist) {
-        return next(new ErrorHandler("Email already exist", 400));
+        return next(new ErrorHandler("Email đã tồn tại", 400));
       }
 
       const user: IRegistrationBody = {
@@ -54,14 +56,14 @@ export const registrationUser = CatchAsyncError(
       try {
         await sendMail({
           email: user.email,
-          subject: "Activate your account",
+          subject: "Kích hoạt tài khoản của bạn",
           template: "activation-mail.ejs",
           data,
         });
 
         res.status(201).json({
           success: true,
-          message: `Please check your email: ${user.email} to activate your account!`,
+          message: `Vui lòng kiểm tra email: ${user.email} để kích hoạt tài khoản!`,
           activationToken: activationToken.token,
         });
       } catch (error: any) {
@@ -95,7 +97,7 @@ export const createActivationToken = (user: any): IActivationToken => {
   return { token, activationCode };
 };
 
-// activate user
+// Kích hoạt người dùng
 interface IActivationRequest {
   activation_token: string;
   activation_code: string;
@@ -113,7 +115,7 @@ export const activateUser = CatchAsyncError(
       ) as { user: IUser; activationCode: string };
 
       if (newUser.activationCode !== activation_code) {
-        return next(new ErrorHandler("Invalid activation code", 400));
+        return next(new ErrorHandler("Mã kích hoạt không hợp lệ", 400));
       }
 
       const { name, email, password } = newUser.user;
@@ -121,7 +123,7 @@ export const activateUser = CatchAsyncError(
       const existUser = await userModel.findOne({ email });
 
       if (existUser) {
-        return next(new ErrorHandler("Email already exist", 400));
+        return next(new ErrorHandler("Email đã tồn tại", 400));
       }
       const user = await userModel.create({
         name,
@@ -138,7 +140,7 @@ export const activateUser = CatchAsyncError(
   }
 );
 
-// Login user
+// Đăng nhập người dùng
 interface ILoginRequest {
   email: string;
   password: string;
@@ -146,23 +148,23 @@ interface ILoginRequest {
 
 export const loginUser = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
-    console.log("OK")
+    console.log("OK");
     try {
       const { email, password } = req.body as ILoginRequest;
       console.log(email, password);
       if (!email || !password) {
-        return next(new ErrorHandler("Please enter email and password", 400));
+        return next(new ErrorHandler("Vui lòng nhập email và mật khẩu", 400));
       }
 
       const user = await userModel.findOne({ email }).select("+password");
 
       if (!user) {
-        return next(new ErrorHandler("Invalid email or password", 400));
+        return next(new ErrorHandler("Email hoặc mật khẩu không hợp lệ", 400));
       }
 
       const isPasswordMatch = await user.comparePassword(password);
       if (!isPasswordMatch) {
-        return next(new ErrorHandler("Invalid email or password", 400));
+        return next(new ErrorHandler("Email hoặc mật khẩu không hợp lệ", 400));
       }
       sendToken(user, 200, res);
     } catch (error: any) {
@@ -171,7 +173,7 @@ export const loginUser = CatchAsyncError(
   }
 );
 
-// logout user
+// Đăng xuất người dùng
 export const logoutUser = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -181,7 +183,7 @@ export const logoutUser = CatchAsyncError(
       redis.del(userId);
       res.status(200).json({
         success: true,
-        message: "Logged out successfully",
+        message: "Đăng xuất thành công",
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
@@ -189,7 +191,7 @@ export const logoutUser = CatchAsyncError(
   }
 );
 
-// update access token
+// Cập nhật access token
 export const updateAccessToken = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -199,7 +201,7 @@ export const updateAccessToken = CatchAsyncError(
         process.env.REFRESH_TOKEN as string
       ) as JwtPayload;
 
-      const message = "Could not refresh token";
+      const message = "Không thể làm mới token";
       if (!decoded) {
         return next(new ErrorHandler(message, 400));
       }
@@ -207,7 +209,7 @@ export const updateAccessToken = CatchAsyncError(
 
       if (!session) {
         return next(
-          new ErrorHandler("Please login for access this resources!", 400)
+          new ErrorHandler("Vui lòng đăng nhập để truy cập tài nguyên này!", 400)
         );
       }
 
@@ -215,7 +217,7 @@ export const updateAccessToken = CatchAsyncError(
 
       req.user = user;
 
-      await redis.set(user._id, JSON.stringify(user), "EX", 604800); // 7days
+      await redis.set(user._id, JSON.stringify(user), "EX", 604800); // 7 ngày
 
       return next();
     } catch (error: any) {
@@ -224,7 +226,7 @@ export const updateAccessToken = CatchAsyncError(
   }
 );
 
-// get user info
+// Lấy thông tin người dùng
 export const getUserInfo = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -242,7 +244,7 @@ interface ISocialAuthBody {
   avatar: string;
 }
 
-// social auth
+// Đăng nhập bằng mạng xã hội
 export const socialAuth = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -260,7 +262,7 @@ export const socialAuth = CatchAsyncError(
   }
 );
 
-// update user info
+// Cập nhật thông tin người dùng
 interface IUpdateUserInfo {
   name?: string;
   email?: string;
@@ -292,7 +294,7 @@ export const updateUserInfo = CatchAsyncError(
   }
 );
 
-// update user password
+// Cập nhật mật khẩu
 interface IUpdatePassword {
   oldPassword: string;
   newPassword: string;
@@ -304,19 +306,19 @@ export const updatePassword = CatchAsyncError(
       const { oldPassword, newPassword } = req.body as IUpdatePassword;
 
       if (!oldPassword || !newPassword) {
-        return next(new ErrorHandler("Please enter old and new password", 400));
+        return next(new ErrorHandler("Vui lòng nhập mật khẩu cũ và mới", 400));
       }
 
       const user = await userModel.findById(req.user?._id).select("+password");
 
       if (user?.password === undefined) {
-        return next(new ErrorHandler("Invalid user", 400));
+        return next(new ErrorHandler("Người dùng không hợp lệ", 400));
       }
 
       const isPasswordMatch = await user?.comparePassword(oldPassword);
 
       if (!isPasswordMatch) {
-        return next(new ErrorHandler("Invalid old password", 400));
+        return next(new ErrorHandler("Mật khẩu cũ không đúng", 400));
       }
 
       user.password = newPassword;
@@ -335,24 +337,24 @@ export const updatePassword = CatchAsyncError(
   }
 );
 
-// Tạo mã reset mật khẩu và gửi email
+// Quên mật khẩu
 interface IForgotPasswordRequest {
   email: string;
 }
 
 export const forgotPassword = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
-    console.log("OK")
+    console.log("OK");
     try {
       const { email } = req.body as IForgotPasswordRequest;
 
       if (!email) {
-        return next(new ErrorHandler("Please enter your email", 400));
+        return next(new ErrorHandler("Vui lòng nhập email của bạn", 400));
       }
 
       const user = await userModel.findOne({ email });
       if (!user) {
-        return next(new ErrorHandler("Email not found", 404));
+        return next(new ErrorHandler("Email không tồn tại", 404));
       }
 
       // Tạo mã reset (4 chữ số)
@@ -372,14 +374,14 @@ export const forgotPassword = CatchAsyncError(
       const data = { user: { name: user.name }, resetCode };
       await sendMail({
         email: user.email,
-        subject: "Reset Your Password",
+        subject: "Đặt lại mật khẩu",
         template: "reset-password-mail.ejs",
         data,
       });
 
       res.status(200).json({
         success: true,
-        message: `A reset code has been sent to ${email}. Please check your inbox.`,
+        message: `Mã đặt lại đã được gửi đến ${email}. Vui lòng kiểm tra hộp thư của bạn.`,
         resetToken, // Gửi token để frontend sử dụng sau
       });
     } catch (error: any) {
@@ -388,7 +390,7 @@ export const forgotPassword = CatchAsyncError(
   }
 );
 
-// Cập nhật mật khẩu mới
+// Đặt lại mật khẩu
 interface IResetPasswordRequest {
   resetToken: string;
   resetCode: string;
@@ -397,12 +399,12 @@ interface IResetPasswordRequest {
 
 export const resetPassword = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
-    console.log("OK")
+    console.log("OK");
     try {
       const { resetToken, resetCode, newPassword } = req.body as IResetPasswordRequest;
 
       if (!resetToken || !resetCode || !newPassword) {
-        return next(new ErrorHandler("Please provide all required fields", 400));
+        return next(new ErrorHandler("Vui lòng cung cấp đầy đủ các trường bắt buộc", 400));
       }
 
       // Xác thực token
@@ -412,13 +414,13 @@ export const resetPassword = CatchAsyncError(
       ) as { email: string; resetCode: string };
 
       if (decoded.resetCode !== resetCode) {
-        return next(new ErrorHandler("Invalid reset code", 400));
+        return next(new ErrorHandler("Mã đặt lại không hợp lệ", 400));
       }
 
       // Kiểm tra token trong Redis
       const storedToken = await redis.get(`reset:${decoded.email}`);
       if (storedToken !== resetToken) {
-        return next(new ErrorHandler("Invalid or expired reset token", 400));
+        return next(new ErrorHandler("Token đặt lại không hợp lệ hoặc đã hết hạn", 400));
       }
 
       // Kiểm tra độ mạnh của mật khẩu mới
@@ -426,7 +428,7 @@ export const resetPassword = CatchAsyncError(
       if (!passwordRegex.test(newPassword)) {
         return next(
           new ErrorHandler(
-            "Password must be at least 6 characters and contain a number and a special character",
+            "Mật khẩu phải có ít nhất 6 ký tự, chứa một số và một ký tự đặc biệt",
             400
           )
         );
@@ -435,7 +437,7 @@ export const resetPassword = CatchAsyncError(
       // Cập nhật mật khẩu
       const user = await userModel.findOne({ email: decoded.email }).select("+password");
       if (!user) {
-        return next(new ErrorHandler("User not found", 404));
+        return next(new ErrorHandler("Người dùng không tồn tại", 404));
       }
 
       user.password = newPassword;
@@ -446,7 +448,7 @@ export const resetPassword = CatchAsyncError(
 
       res.status(200).json({
         success: true,
-        message: "Password reset successfully. Please login with your new password.",
+        message: "Đặt lại mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới.",
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
@@ -458,7 +460,7 @@ interface IUpdateProfilePicture {
   avatar: string;
 }
 
-// update profile picture
+// Cập nhật ảnh hồ sơ
 export const updateProfilePicture = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -469,9 +471,9 @@ export const updateProfilePicture = CatchAsyncError(
       const user = await userModel.findById(userId).select("+password");
 
       if (avatar && user) {
-        // if user have one avatar then call this if
+        // Nếu người dùng đã có ảnh đại diện thì xóa ảnh cũ
         if (user?.avatar?.public_id) {
-          // first delete the old image
+          // Xóa ảnh cũ
           await cloudinary.v2.uploader.destroy(user?.avatar?.public_id);
 
           const myCloud = await cloudinary.v2.uploader.upload(avatar, {
@@ -509,7 +511,7 @@ export const updateProfilePicture = CatchAsyncError(
   }
 );
 
-// get all users --- only for admin
+// Lấy tất cả người dùng --- chỉ dành cho admin
 export const getAllUsers = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -520,7 +522,7 @@ export const getAllUsers = CatchAsyncError(
   }
 );
 
-// update user role --- only for admin
+// Cập nhật vai trò người dùng --- chỉ dành cho admin
 export const updateUserRole = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -532,7 +534,7 @@ export const updateUserRole = CatchAsyncError(
       } else {
         res.status(400).json({
           success: false,
-          message: "User not found",
+          message: "Người dùng không tồn tại",
         });
       }
     } catch (error: any) {
@@ -541,7 +543,7 @@ export const updateUserRole = CatchAsyncError(
   }
 );
 
-// Delete user --- only for admin
+// Xóa người dùng --- chỉ dành cho admin
 export const deleteUser = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -550,7 +552,7 @@ export const deleteUser = CatchAsyncError(
       const user = await userModel.findById(id);
 
       if (!user) {
-        return next(new ErrorHandler("User not found", 404));
+        return next(new ErrorHandler("Người dùng không tồn tại", 404));
       }
 
       await user.deleteOne({ id });
@@ -559,14 +561,15 @@ export const deleteUser = CatchAsyncError(
 
       res.status(200).json({
         success: true,
-        message: "User deleted successfully",
+        message: "Xóa người dùng thành công",
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
     }
   }
 );
-// backend/controllers/user.controller.ts
+
+// Lấy danh sách khóa học của người dùng
 export const getUserCourses = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {

@@ -14,107 +14,7 @@ import sendMail from "../utils/sendMail";
 require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
-// create order
-// export const createOrder = CatchAsyncError(
-//   async (req: Request, res: Response, next: NextFunction) => {
-//     try {
-//       const { cartItems, payment_info } = req.body as IOrder;
-
-//       if (payment_info) {
-//         if ("id" in payment_info) {
-//           const paymentIntentId = payment_info.id;
-//           const paymentIntent = await stripe.paymentIntents.retrieve(
-//             paymentIntentId
-//           );
-
-//           if (paymentIntent.status !== "succeeded") {
-//             return next(new ErrorHandler("Payment not authorized!", 400));
-//           }
-//         }
-//       }
-
-//       const user = await userModel.findById(req.user?._id);
-
-//       const courseExistInUser = user?.courses.some(
-//         (course: any) => course._id.toString() === courseId
-//       );
-
-//       if (courseExistInUser) {
-//         return next(
-//           new ErrorHandler("You have already purchased this course", 400)
-//         );
-//       }
-
-//       const course: ICourse | null = await CourseModel.findById(courseId);
-
-//       if (!course) {
-//         return next(new ErrorHandler("Course not found", 404));
-//       }
-
-//       const data: any = {
-//         courseId: course._id,
-//         userId: user?._id,
-//         payment_info,
-//       };
-
-//       const mailData = {
-//         order: {
-//           _id: course._id.toString().slice(0, 6),
-//           name: course.name,
-//           price: course.price,
-//           date: new Date().toLocaleDateString("en-US", {
-//             year: "numeric",
-//             month: "long",
-//             day: "numeric",
-//           }),
-//         },
-//       };
-
-//       const html = await ejs.renderFile(
-//         path.join(__dirname, "../mails/order-confirmation.ejs"),
-//         { order: mailData }
-//       );
-
-//       try {
-//         if (user) {
-//           await sendMail({
-//             email: user.email,
-//             subject: "Order Confirmation",
-//             template: "order-confirmation.ejs",
-//             data: mailData,
-//           });
-//         }
-//       } catch (error: any) {
-//         return next(new ErrorHandler(error.message, 500));
-//       }
-
-//       user?.courses.push(course?._id);
-
-//       await redis.set(req.user?._id, JSON.stringify(user));
-
-//       await user?.save();
-
-//       await NotificationModel.create({
-//         user: user?._id,
-//         title: "New Order",
-//         message: `You have a new order from ${course?.name}`,
-//       });
-
-//       course.purchased = course.purchased + 1;
-
-//       await course.save();
-
-//       newOrder(data, res, next);
-//     } catch (error: any) {
-//       return next(new ErrorHandler(error.message, 500));
-//     }
-//   }
-// );
-
-
-
 // Tạo đơn hàng từ ứng dụng di động
-// backend/controllers/order.controller.ts
 export const createMobileOrder = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -188,17 +88,16 @@ export const createMobileOrder = CatchAsyncError(
         created: payment_info.paymentIntent?.created || Math.floor(Date.now() / 1000),
       };
 
-      // Bỏ transaction, lưu trực tiếp
       const order = await OrderModel.create({
         userId,
         userName: user.name,
         courses: coursesInCart,
         payment_info: formattedPaymentInfo,
         totalPrice,
-        status: formattedPaymentInfo.status === "succeeded" ? "Completed" : "Failed",
+        status: formattedPaymentInfo.status === "succeeded" ? "Hoàn Thành" : "Thất Bại",
       });
 
-      console.log("Order created:", order);
+      console.log("Đơn hàng đã được tạo:", order);
 
       coursesInCart.forEach((course) => {
         if (course.courseId) {
@@ -207,23 +106,23 @@ export const createMobileOrder = CatchAsyncError(
       });
 
       await user.save();
-      console.log("User updated with courses:", user.courses);
+      console.log("Người dùng đã được cập nhật với khóa học:", user.courses);
 
       await redis.set(userId, JSON.stringify(user));
-      console.log("User saved to Redis:", userId);
+      console.log("Người dùng đã được lưu vào Redis:", userId);
 
       cart.items = cart.items.filter(
         (item) => !selectedCourseIds.includes(item.courseId)
       );
       await cart.save();
-      console.log("Cart updated:", cart.items);
+      console.log("Giỏ hàng đã được cập nhật:", cart.items);
 
       await NotificationModel.create({
         user: userId,
         title: "Đơn Hàng Mới",
         message: `Bạn đã đặt mua thành công ${coursesInCart.length} khóa học`,
       });
-      console.log("Notification created for user:", userId);
+      console.log("Thông báo đã được tạo cho người dùng:", userId);
 
       await Promise.all(
         coursesInCart.map(async (course) => {
@@ -231,7 +130,7 @@ export const createMobileOrder = CatchAsyncError(
           if (courseDoc) {
             courseDoc.purchased = (courseDoc.purchased || 0) + 1;
             await courseDoc.save();
-            console.log("Course purchased count updated:", course.courseId);
+            console.log("Số lượng mua khóa học đã được cập nhật:", course.courseId);
           }
         })
       );
@@ -264,20 +163,22 @@ export const createMobileOrder = CatchAsyncError(
           template: "order-confirmation.ejs",
           data: mailData,
         });
-        console.log("Email sent to:", user.email);
+        console.log("Email đã được gửi đến:", user.email);
       }
 
       res.status(201).json({
         success: true,
         order,
+        message: "Tạo đơn hàng thành công",
       });
     } catch (error: any) {
-      console.error("Error creating order:", error);
+      console.error("Lỗi khi tạo đơn hàng:", error);
       return next(new ErrorHandler(error.message, 500));
     }
   }
 );
-// get All orders --- only for admin
+
+// Lấy tất cả đơn hàng --- chỉ dành cho admin
 export const getAllOrders = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -288,16 +189,17 @@ export const getAllOrders = CatchAsyncError(
   }
 );
 
-//  send stripe publishble key
+// Gửi khóa công khai của Stripe
 export const sendStripePublishableKey = CatchAsyncError(
   async (req: Request, res: Response) => {
     res.status(200).json({
       publishablekey: process.env.STRIPE_PUBLISHABLE_KEY,
+      message: "Lấy khóa công khai Stripe thành công",
     });
   }
 );
 
-// new payment
+// Tạo thanh toán mới
 export const newPayment = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -315,13 +217,16 @@ export const newPayment = CatchAsyncError(
       res.status(200).json({
         success: true,
         client_secret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id, // Thêm paymentIntentId vào response
+        paymentIntentId: paymentIntent.id,
+        message: "Tạo thanh toán mới thành công",
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 500));
     }
   }
 );
+
+// Lấy chi tiết Payment Intent
 export const getPaymentIntentDetails = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -340,6 +245,7 @@ export const getPaymentIntentDetails = CatchAsyncError(
         currency: paymentIntent.currency,
         payment_method_types: paymentIntent.payment_method_types,
         created: paymentIntent.created,
+        message: "Lấy chi tiết Payment Intent thành công",
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 500));

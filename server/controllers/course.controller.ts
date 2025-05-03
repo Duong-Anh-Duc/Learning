@@ -326,10 +326,10 @@ export const addReview = CatchAsyncError(
       const userCourseList = req.user?.courses;
 
       const courseId = req.params.id;
-
+      console.log(userCourseList)
       // check if courseId already exists in userCourseList based on _id
       const courseExists = userCourseList?.some(
-        (course: any) => course._id.toString() === courseId.toString()
+        (course: any) => course.courseId.toString() === courseId.toString()
       );
 
       if (!courseExists) {
@@ -493,20 +493,27 @@ export const generateVideoUrl = CatchAsyncError(
     }
   }
 );
+// backend/controllers/course.controller.ts
+// backend/controllers/course.controller.ts
 export const filterCourses = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const {
+        name,
         categories,
         level,
-        minPrice,
-        maxPrice,
         minRating,
         minPurchased,
+        sortOrder, // Thêm tham số sortOrder để sắp xếp theo giá
       } = req.query;
 
       // Tạo query lọc
       const query: any = {};
+
+      // Tìm kiếm theo tên khóa học (không phân biệt hoa thường, hỗ trợ tìm kiếm gần đúng)
+      if (name) {
+        query.name = { $regex: name as string, $options: "i" };
+      }
 
       // Lọc theo danh mục
       if (categories && categories !== "Tất cả") {
@@ -516,17 +523,6 @@ export const filterCourses = CatchAsyncError(
       // Lọc theo cấp độ
       if (level && level !== "Tất cả") {
         query.level = level;
-      }
-
-      // Lọc theo khoảng giá
-      if (minPrice || maxPrice) {
-        query.price = {};
-        if (minPrice) {
-          query.price.$gte = parseFloat(minPrice as string);
-        }
-        if (maxPrice) {
-          query.price.$lte = parseFloat(maxPrice as string);
-        }
       }
 
       // Lọc theo mức đánh giá
@@ -539,10 +535,22 @@ export const filterCourses = CatchAsyncError(
         query.purchased = { $gte: parseFloat(minPurchased as string) };
       }
 
-      // Lấy danh sách khóa học theo query
-      const courses = await CourseModel.find(query).select(
+      // Tạo query tìm kiếm
+      let courseQuery = CourseModel.find(query).select(
         "-courseData.videoUrl -courseData.suggestion -courseData.questions -courseData.links"
       );
+
+      // Sắp xếp theo giá
+      if (sortOrder) {
+        if (sortOrder === "asc") {
+          courseQuery = courseQuery.sort({ price: 1 }); // Tăng dần
+        } else if (sortOrder === "desc") {
+          courseQuery = courseQuery.sort({ price: -1 }); // Giảm dần
+        }
+      }
+
+      // Thực hiện query
+      const courses = await courseQuery;
 
       res.status(200).json({
         success: true,

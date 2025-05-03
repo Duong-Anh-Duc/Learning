@@ -1,5 +1,4 @@
 // frontend/app/(tabs)/index.tsx
-import SearchInput from "@/components/common/search.input";
 import AllCourses from "@/components/courses/all.courses";
 import Header from "@/components/header/header";
 import { LinearGradient } from "expo-linear-gradient";
@@ -12,7 +11,6 @@ export default function HomeScreen() {
       style={{ flex: 1, paddingTop: 50 }}
     >
       <Header />
-      <SearchInput homeScreen={true} showFilters={false} />
       <AllCourses />
     </LinearGradient>
   );

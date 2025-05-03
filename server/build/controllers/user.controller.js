@@ -95,15 +95,15 @@ exports.loginUser = (0, catchAsyncErrors_1.CatchAsyncError)(async (req, res, nex
         const { email, password } = req.body;
         console.log(email, password);
         if (!email || !password) {
-            return next(new ErrorHandler_1.default("Please enter email and password", 400));
+            return next(new ErrorHandler_1.default("Vui lòng nhập email và mật khẩu!", 400));
         }
         const user = await user_model_1.default.findOne({ email }).select("+password");
         if (!user) {
-            return next(new ErrorHandler_1.default("Invalid email or password", 400));
+            return next(new ErrorHandler_1.default("Email hoặc mật khẩu không hợp lệ!", 400));
         }
         const isPasswordMatch = await user.comparePassword(password);
         if (!isPasswordMatch) {
-            return next(new ErrorHandler_1.default("Invalid email or password", 400));
+            return next(new ErrorHandler_1.default("Email hoặc mật khẩu không hợp lệ!", 400));
         }
         (0, jwt_1.sendToken)(user, 200, res);
     }
@@ -191,6 +191,7 @@ exports.updateUserInfo = (0, catchAsyncErrors_1.CatchAsyncError)(async (req, res
             user,
         });
     }
+    
     catch (error) {
         return next(new ErrorHandler_1.default(error.message, 400));
     }
