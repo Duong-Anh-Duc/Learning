@@ -571,3 +571,103 @@ export const getCategories = CatchAsyncError(
     }
   }
 );
+
+
+import fs from "fs";
+
+export const kienaddCourse = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const {
+        name,
+        description,
+        categories,
+        price,
+        estimatedPrice,
+        tags,
+        level,
+        benefits,
+        prerequisites,
+        courseData,
+      } = req.body;
+
+      // Kiểm tra các trường bắt buộc
+      if (!name || !description || !categories || !price || !tags || !level) {
+        return next(new ErrorHandler("Vui lòng cung cấp đầy đủ các trường bắt buộc", 400));
+      }
+
+      // Xử lý thumbnail
+      let thumbnail = {};
+      if (req.files && (req.files as any).thumbnail) {
+        const thumbnailFile = (req.files as any).thumbnail[0];
+        const myCloud = await cloudinary.v2.uploader.upload(thumbnailFile.path, {
+          folder: "courses/thumbnails",
+          resource_type: "image",
+        });
+        thumbnail = {
+          public_id: myCloud.public_id,
+          url: myCloud.secure_url,
+        };
+        fs.unlinkSync(thumbnailFile.path); // Xóa file tạm
+      }
+
+      // Xử lý demo video
+      let demoUrl = req.body.demoUrl || "";
+      if (req.files && (req.files as any).demoVideo) {
+        const demoVideoFile = (req.files as any).demoVideo[0];
+        const myCloud = await cloudinary.v2.uploader.upload(demoVideoFile.path, {
+          folder: "courses/videos",
+          resource_type: "video",
+        });
+        demoUrl = myCloud.secure_url;
+        fs.unlinkSync(demoVideoFile.path); // Xóa file tạm
+      }
+
+      // Xử lý video trong courseData
+      let parsedCourseData = courseData ? JSON.parse(courseData) : [];
+      if (req.files && (req.files as any).courseVideos) {
+        const courseVideoFiles = (req.files as any).courseVideos;
+        for (let i = 0; i < courseVideoFiles.length && i < parsedCourseData.length; i++) {
+          const myCloud = await cloudinary.v2.uploader.upload(courseVideoFiles[i].path, {
+            folder: "courses/videos",
+            resource_type: "video",
+          });
+          parsedCourseData[i].videoUrl = myCloud.secure_url;
+          fs.unlinkSync(courseVideoFiles[i].path); // Xóa file tạm
+        }
+      }
+
+      // Chuẩn bị dữ liệu khóa học
+      const courseDataToSave = {
+        name,
+        description,
+        categories,
+        price,
+        estimatedPrice: estimatedPrice || undefined,
+        thumbnail,
+        tags,
+        level,
+        demoUrl,
+        benefits: benefits ? JSON.parse(benefits) : [],
+        prerequisites: prerequisites ? JSON.parse(prerequisites) : [],
+        courseData: parsedCourseData,
+        ratings: 0,
+        purchased: 0,
+      };
+
+      // Tạo khóa học mới
+      const course = await CourseModel.create(courseDataToSave);
+
+      // Lưu khóa học vào Redis
+      await redis.set(course._id.toString(), JSON.stringify(course), "EX", 604800); // Lưu 7 ngày
+
+      res.status(201).json({
+        success: true,
+        message: "Khóa học được tạo thành công",
+        course,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);

@@ -13,10 +13,35 @@ import {
   getCategories,
   getCourseByUser,
   getSingleCourse,
+  kienaddCourse,
   uploadCourse,
 } from "../controllers/course.controller";
 import { authorizeRoles, isAutheticated } from "../middleware/auth";
+import multer from "multer";
 const courseRouter = express.Router();
+
+//kien viet api mơi
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+
+const upload = multer({ storage });
+courseRouter.post(
+  "/kientran",
+  upload.fields([
+    { name: "thumbnail", maxCount: 1 }, // Ảnh thumbnail
+    { name: "demoVideo", maxCount: 1 }, // Video demo
+    { name: "courseVideos", maxCount: 10 }, // Video trong courseData
+  ]),
+  kienaddCourse
+);
+
+//
 
 courseRouter.post(
   "/create-course",
