@@ -19,7 +19,7 @@ interface ILink extends Document {
   url: string;
 }
 
-interface ICourseData extends Document {
+export interface ICourseData extends Document {
   title: string;
   description: string;
   videoUrl: string;

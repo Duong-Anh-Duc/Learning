@@ -5,7 +5,9 @@ import { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import path from "path";
 import { CatchAsyncError } from "../middleware/catchAsyncErrors";
+
 import CourseModel from "../models/course.model";
+import  {ICourseData} from "../models/course.model";
 import NotificationModel from "../models/notification.Model";
 import { createCourse, getAllCoursesService } from "../services/course.service";
 import ErrorHandler from "../utils/ErrorHandler";
@@ -664,6 +666,68 @@ export const kienaddCourse = CatchAsyncError(
       res.status(201).json({
         success: true,
         message: "Khóa học được tạo thành công",
+        course,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+export const kienaddminiCourse = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { courseId, title, description, videoSection, videoLength, videoPlayer, links, suggestion, questions } = req.body;
+
+      // Kiểm tra các trường bắt buộc
+      if (!courseId || !title || !description || !videoSection || !videoLength || !videoPlayer) {
+        return next(new ErrorHandler("Vui lòng cung cấp đầy đủ các trường bắt buộc cho bài học", 400));
+      }
+
+      // Tìm khóa học theo ID
+      const course = await CourseModel.findById(courseId);
+      if (!course) {
+        return next(new ErrorHandler("Không tìm thấy khóa học", 404));
+      }
+
+      // Xử lý video nếu có
+      let videoUrl = "";
+      if (req.file) {
+        const videoFile = req.file;
+        const myCloud = await cloudinary.v2.uploader.upload(videoFile.path, {
+          folder: "courses/videos",
+          resource_type: "video",
+        });
+        videoUrl = myCloud.secure_url;
+        fs.unlinkSync(videoFile.path); // Xóa file tạm
+      }
+
+      // Tạo courseData mới và ép kiểu thành ICourseData
+      const newCourseData = {
+        title,
+        description,
+        videoUrl,
+        videoSection,
+        videoLength: Number(videoLength),
+        videoPlayer,
+        links: links ? JSON.parse(links) : [],
+        suggestion: suggestion || "",
+        questions: questions ? JSON.parse(questions) : [],
+        videoThumbnail: {},
+      } as ICourseData; // Ép kiểu để khớp với ICourseData
+
+      // Thêm courseData vào mảng courseData của khóa học
+      course.courseData.push(newCourseData);
+
+      // Lưu lại khóa học
+      await course.save();
+
+      // Cập nhật Redis
+      await redis.set(course._id.toString(), JSON.stringify(course), "EX", 604800); // Lưu 7 ngày
+
+      res.status(200).json({
+        success: true,
+        message: "Đã thêm bài học nhỏ vào khóa học thành công",
         course,
       });
     } catch (error: any) {

@@ -14,6 +14,7 @@ import {
   getCourseByUser,
   getSingleCourse,
   kienaddCourse,
+  kienaddminiCourse,
   uploadCourse,
 } from "../controllers/course.controller";
 import { authorizeRoles, isAutheticated } from "../middleware/auth";
@@ -39,6 +40,12 @@ courseRouter.post(
     { name: "courseVideos", maxCount: 10 }, // Video trong courseData
   ]),
   kienaddCourse
+);
+
+courseRouter.post(
+  "/kientran2",
+  upload.single("videoFile"), // Chỉ cần upload 1 video cho courseData
+  kienaddminiCourse
 );
 
 //
