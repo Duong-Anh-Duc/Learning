@@ -1,4 +1,6 @@
+// backend/routes/course.route.ts
 import express from "express";
+import multer from "multer";
 import {
   addAnwser,
   addQuestion,
@@ -13,18 +15,50 @@ import {
   getCategories,
   getCourseByUser,
   getSingleCourse,
-  uploadCourse,
+  kienaddCourse,
+  kienaddminiCourse,
 } from "../controllers/course.controller";
 import { authorizeRoles, isAutheticated } from "../middleware/auth";
 const courseRouter = express.Router();
 
+// Cấu hình multer để upload file
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+
+const upload = multer({ storage });
+
+// API tạo khóa học lớn (thay thế /kientran)
 courseRouter.post(
   "/create-course",
-  isAutheticated,
-  authorizeRoles("admin"),
-  uploadCourse
+  //isAutheticated,
+  //authorizeRoles("admin"),
+  upload.fields([
+    { name: "thumbnail", maxCount: 1 }, // Ảnh thumbnail
+    { name: "demoVideo", maxCount: 1 }, // Video demo
+    { name: "courseVideos", maxCount: 10 }, // Video trong courseData
+  ]),
+  kienaddCourse
 );
 
+// API thêm bài học nhỏ vào khóa học (thay thế /kientran2)
+courseRouter.post(
+  "/add-lesson",
+  //isAutheticated,
+  //authorizeRoles("admin"),
+  upload.fields([
+    { name: "videoFile", maxCount: 1 }, // Video chính của bài học
+    { name: "thumbnailFile", maxCount: 1 }, // Ảnh thumbnail cho video
+  ]),
+  kienaddminiCourse
+);
+
+// Các API khác giữ nguyên
 courseRouter.put(
   "/edit-course/:id",
   isAutheticated,
@@ -42,6 +76,7 @@ courseRouter.get(
   authorizeRoles("admin"),
   getAdminAllCourses
 );
+
 courseRouter.get("/get-course-content/:id", isAutheticated, getCourseByUser);
 
 courseRouter.put("/add-question", isAutheticated, addQuestion);
@@ -65,6 +100,8 @@ courseRouter.delete(
   authorizeRoles("admin"),
   deleteCourse
 );
+
 courseRouter.get("/get-categories", getCategories);
 courseRouter.get("/filter-courses", filterCourses);
+
 export default courseRouter;

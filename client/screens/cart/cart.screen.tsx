@@ -19,7 +19,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import * as Animatable from "react-native-animatable";
 import { Toast } from "react-native-toast-notifications";
 
 type CartItemType = {
@@ -40,18 +39,22 @@ export default function CartScreen() {
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [enrolledCourses, setEnrolledCourses] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalVisible, setIsModalVisible] = useState(false); // State để kiểm soát modal
+  const [isModalVisible, setIsModalVisible] = useState(false);
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { cartItems, removeFromCart, clearCart, fetchCart } = useCart();
 
   const fetchEnrolledCourses = async () => {
     try {
+      const cachedEnrolledCourses = await AsyncStorage.getItem("enrolledCourses");
+      if (cachedEnrolledCourses) {
+        setEnrolledCourses(JSON.parse(cachedEnrolledCourses));
+        return;
+      }
+
       const accessToken = await AsyncStorage.getItem("access_token");
       const refreshToken = await AsyncStorage.getItem("refresh_token");
 
       if (!accessToken || !refreshToken) {
-        Toast.show("Vui lòng đăng nhập để xem khóa học đã đăng ký", { type: "warning" });
-        router.push("/(routes)/login");
         return;
       }
 
@@ -64,6 +67,7 @@ export default function CartScreen() {
 
       const courses = response.data.courses.map((course: any) => course.courseId);
       setEnrolledCourses(courses);
+      await AsyncStorage.setItem("enrolledCourses", JSON.stringify(courses));
     } catch (error: any) {
       console.error("Lỗi khi lấy danh sách khóa học đã đăng ký:", error);
       Toast.show("Không thể lấy danh sách khóa học đã đăng ký", { type: "danger" });
@@ -90,6 +94,7 @@ export default function CartScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
+      await AsyncStorage.removeItem("enrolledCourses");
       await fetchCart();
       await fetchEnrolledCourses();
     } catch (error: any) {
@@ -173,16 +178,15 @@ export default function CartScreen() {
       });
       return;
     }
-    setIsModalVisible(true); // Hiển thị modal khi nhấn "Thanh Toán"
+    setIsModalVisible(true);
   };
 
   const handlePayment = async () => {
-    setIsModalVisible(false); // Đóng modal sau khi xác nhận
+    setIsModalVisible(false);
     try {
       setIsLoading(true);
       const accessToken = await AsyncStorage.getItem("access_token");
       const refreshToken = await AsyncStorage.getItem("refresh_token");
-
       if (!accessToken || !refreshToken) {
         Toast.show("Vui lòng đăng nhập để thanh toán", { type: "warning" });
         router.push("/(routes)/login");
@@ -203,7 +207,6 @@ export default function CartScreen() {
       );
 
       const { client_secret: clientSecret, paymentIntentId } = paymentIntentResponse.data;
-      console.log("Payment intent response:", paymentIntentResponse.data);
 
       const initSheetResponse = await initPaymentSheet({
         merchantDisplayName: "EduBridge",
@@ -217,7 +220,6 @@ export default function CartScreen() {
       }
 
       const paymentResponse = await presentPaymentSheet();
-      console.log("Payment response:", paymentResponse);
 
       if (paymentResponse.error) {
         Toast.show("Thanh toán thất bại", { type: "danger" });
@@ -232,7 +234,6 @@ export default function CartScreen() {
           }
         );
 
-        console.log("Payment intent details:", paymentIntentDetailsResponse.data);
         await createOrder(paymentResponse, paymentIntentDetailsResponse.data);
       }
     } catch (error) {
@@ -298,18 +299,14 @@ export default function CartScreen() {
     <LinearGradient colors={["#009990", "#F6F7F9"]} style={styles.container}>
       {orderSuccess ? (
         <View style={styles.successContainer}>
-          <Animatable.Image
-            animation="bounceIn"
-            source={require("@/assets/images/account_confirmation.png")}
-            style={styles.successImage}
-          />
-          <Animatable.Text animation="fadeInUp" style={styles.successTitle}>
+          <Ionicons name="checkmark-circle" size={80} color="#009990" style={styles.successIcon} />
+          <Text style={styles.successTitle}>
             Thanh Toán Thành Công!
-          </Animatable.Text>
-          <Animatable.Text animation="fadeInUp" style={styles.successText}>
+          </Text>
+          <Text style={styles.successText}>
             Cảm ơn bạn đã mua hàng!
-          </Animatable.Text>
-          <Animatable.View animation="fadeInUp" style={styles.orderDetails}>
+          </Text>
+          <View style={styles.orderDetails}>
             <Text style={styles.orderText}>
               Mã đơn hàng: {orderDetails?._id?.slice(0, 6) ?? "N/A"}
             </Text>
@@ -337,36 +334,33 @@ export default function CartScreen() {
             <Text style={styles.orderText}>
               Bạn sẽ nhận được email thông báo!
             </Text>
-          </Animatable.View>
-          <Animatable.View animation="fadeInUp">
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => {
-                setOrderSuccess(false);
-                router.push("/(tabs)");
-              }}
-            >
-              <Text style={styles.backButtonText}>Quay lại Trang chủ</Text>
-            </TouchableOpacity>
-          </Animatable.View>
+          </View>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              setOrderSuccess(false);
+              router.push("/(tabs)");
+            }}
+          >
+            <Text style={styles.backButtonText}>Quay lại Trang chủ</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <View style={{ flex: 1 }}>
-          <Animatable.View animation="fadeInDown" style={styles.header}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={24} color="#333" />
+            </TouchableOpacity>
             <Text style={styles.headerText}>Giỏ Hàng</Text>
             <View style={styles.cartCount}>
               <Text style={styles.cartCountText}>{cartItems.length}</Text>
             </View>
-          </Animatable.View>
+          </View>
           <FlatList<CartItemType>
             data={cartItems}
             keyExtractor={(item) => item.courseId || Math.random().toString()}
-            renderItem={({ item, index }) => (
-              <Animatable.View
-                animation="fadeInUp"
-                delay={index * 100}
-                style={styles.cartItem}
-              >
+            renderItem={({ item }) => (
+              <View style={styles.cartItem}>
                 <TouchableOpacity
                   style={styles.checkbox}
                   onPress={() => toggleSelection(item.courseId)}
@@ -390,9 +384,7 @@ export default function CartScreen() {
                   onPress={() => handleCourseDetails(item)}
                 >
                   <Image
-                    source={{
-                      uri: item.thumbnail?.url || "https://via.placeholder.com/80",
-                    }}
+                    source={{ uri: item.thumbnail?.url || "https://via.placeholder.com/80" }}
                     style={styles.courseImage}
                   />
                 </TouchableOpacity>
@@ -421,14 +413,11 @@ export default function CartScreen() {
                     </TouchableOpacity>
                   )}
                 </View>
-              </Animatable.View>
+              </View>
             )}
             ListEmptyComponent={() => (
-              <Animatable.View animation="fadeIn" style={styles.emptyContainer}>
-                <Image
-                  source={require("@/assets/empty_cart.png")}
-                  style={styles.emptyImage}
-                />
+              <View style={styles.emptyContainer}>
+                <Ionicons name="cart-outline" size={80} color="#575757" style={styles.emptyIcon} />
                 <Text style={styles.emptyText}>
                   Giỏ Hàng Của Bạn Đang Trống!
                 </Text>
@@ -438,14 +427,23 @@ export default function CartScreen() {
                 >
                   <Text style={styles.shopButtonText}>Khám phá khóa học</Text>
                 </TouchableOpacity>
-              </Animatable.View>
+              </View>
             )}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
+            initialNumToRender={5}
+            windowSize={10}
+            removeClippedSubviews={true}
+            getItemLayout={(data, index) => ({
+              length: 120, // Tăng chiều cao để chứa hình ảnh
+              offset: 120 * index,
+              index,
+            })}
+            contentContainerStyle={{ paddingBottom: 20 }}
           />
           {cartItems.length > 0 && (
-            <Animatable.View animation="fadeInUp" style={styles.footer}>
+            <View style={styles.footer}>
               <Text style={styles.totalText}>
                 Tổng Cộng: {calculateTotalPrice()} VNĐ
               </Text>
@@ -456,7 +454,7 @@ export default function CartScreen() {
                     opacity: selectedCourseIds.length === 0 ? 0.5 : 1,
                   },
                 ]}
-                onPress={handleShowModal} // Hiển thị modal thay vì gọi trực tiếp handlePayment
+                onPress={handleShowModal}
                 disabled={selectedCourseIds.length === 0 || isLoading}
               >
                 {isLoading ? (
@@ -467,11 +465,10 @@ export default function CartScreen() {
                   </Text>
                 )}
               </TouchableOpacity>
-            </Animatable.View>
+            </View>
           )}
-          {/* Modal xác nhận thanh toán */}
           <Modal
-            animationType="fade"
+            animationType="slide"
             transparent={true}
             visible={isModalVisible}
             onRequestClose={() => setIsModalVisible(false)}
@@ -556,7 +553,7 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   cartCount: {
-    backgroundColor: "#009990", // Màu xanh lá cây chính
+    backgroundColor: "#141517",
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -580,16 +577,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  successImage: {
-    width: 200,
-    height: 200,
-    resizeMode: "contain",
+  successIcon: {
     marginBottom: 20,
   },
   successTitle: {
     fontSize: 24,
     fontFamily: "Raleway_700Bold",
-    color: "#009990", // Màu xanh lá cây chính
+    color: "#009990",
     textAlign: "center",
   },
   successText: {
@@ -614,7 +608,7 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   backButton: {
-    backgroundColor: "#009990", // Màu xanh lá cây chính
+    backgroundColor: "#009990",
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -639,6 +633,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+    height: 120, // Tăng chiều cao để chứa hình ảnh
   },
   checkbox: {
     marginRight: 10,
@@ -685,7 +680,7 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
   accessButton: {
-    backgroundColor: "#009990", // Màu xanh lá cây chính
+    backgroundColor: "#009990",
     borderRadius: 5,
     paddingVertical: 5,
     paddingHorizontal: 10,
@@ -707,10 +702,8 @@ const styles = StyleSheet.create({
     padding: 20,
     marginTop: 100,
   },
-  emptyImage: {
-    width: 200,
-    height: 200,
-    resizeMode: "contain",
+  emptyIcon: {
+    marginBottom: 20,
   },
   emptyText: {
     fontSize: 20,
@@ -719,7 +712,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   shopButton: {
-    backgroundColor: "#009990", // Màu xanh lá cây chính
+    backgroundColor: "#009990",
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -750,7 +743,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   checkoutButton: {
-    backgroundColor: "#009990", // Màu xanh lá cây chính
+    backgroundColor: "#009990",
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: "center",
@@ -760,12 +753,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Nunito_600SemiBold",
   },
-  // Styles cho modal
   modalOverlay: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)", // Nền mờ
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContainer: {
     width: "90%",
@@ -793,7 +785,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   modalCourseList: {
-    maxHeight: 200, // Giới hạn chiều cao danh sách khóa học
+    maxHeight: 200,
     marginBottom: 15,
   },
   modalCourseItem: {

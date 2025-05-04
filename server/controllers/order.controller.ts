@@ -204,16 +204,15 @@ export const newPayment = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { amount } = req.body;
+      console.log(typeof amount)
       if (!amount) {
         return next(new ErrorHandler("Vui lòng cung cấp số tiền", 400));
       }
-
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: "vnd",
         payment_method_types: ["card"],
       });
-
       res.status(200).json({
         success: true,
         client_secret: paymentIntent.client_secret,

@@ -3,6 +3,7 @@ import ReviewCard from "@/components/cards/review.card";
 import CourseLesson from "@/components/courses/course.lesson";
 import { useCart } from "@/context/CartContext";
 import useUser from "@/hooks/auth/useUser";
+import { SERVER_URI } from "@/utils/uri";
 import {
   Nunito_400Regular,
   Nunito_500Medium,
@@ -15,14 +16,13 @@ import {
   useFonts,
 } from "@expo-google-fonts/raleway";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Toast } from "react-native-toast-notifications";
-import axios from "axios";
-import { SERVER_URI } from "@/utils/uri";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Định nghĩa các kiểu tại đây
 interface User {
@@ -106,7 +106,10 @@ export default function CourseDetailScreen() {
   const [courseData, setCourseData] = useState<CoursesType | null>(null);
   const [checkPurchased, setCheckPurchased] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const { addToCart } = useCart();
+  const { addToCart, removeFromCart, cartItems, errorMessage, clearError } = useCart();
+
+  // Kiểm tra xem khóa học đã có trong giỏ hàng chưa
+  const isCourseInCart = cartItems.some((item) => item.courseId === courseId);
 
   useEffect(() => {
     const fetchCourseData = async () => {
@@ -142,15 +145,35 @@ export default function CourseDetailScreen() {
     if (!courseData) return;
     try {
       await addToCart(courseData);
-      // Hiển thị thông báo "Thêm sản phẩm thành công" mà không điều hướng
-      Toast.show("Thêm sản phẩm vào giỏ hàng thành công!", {
+      if (!errorMessage) {
+        Toast.show("Thêm sản phẩm vào giỏ hàng thành công!", {
+          type: "success",
+          placement: "top",
+          duration: 3000,
+        });
+      }
+    } catch (error: any) {
+      console.error("Lỗi khi thêm vào giỏ hàng:", error);
+    }
+  };
+
+  const handleRemoveFromCart = async () => {
+    if (!courseId) return;
+    try {
+      await removeFromCart(courseId as string);
+      Toast.show("Đã xóa sản phẩm khỏi giỏ hàng!", {
         type: "success",
         placement: "top",
         duration: 3000,
       });
+      clearError();
     } catch (error: any) {
-      console.error("Lỗi khi thêm vào giỏ hàng:", error);
-      Toast.show("Không thể thêm vào giỏ hàng", { type: "danger" });
+      console.error("Lỗi khi xóa khỏi giỏ hàng:", error);
+      Toast.show("Không thể xóa sản phẩm khỏi giỏ hàng", {
+        type: "warning",
+        placement: "top",
+        duration: 3000,
+      });
     }
   };
 
@@ -228,6 +251,14 @@ export default function CourseDetailScreen() {
       colors={["#009990", "#F6F7F9"]}
       style={{ flex: 1, paddingTop: 15 }}
     >
+      {errorMessage && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+          <TouchableOpacity onPress={clearError} style={styles.clearErrorButton}>
+            <Ionicons name="close-circle" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      )}
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={{ marginHorizontal: 16 }}>
           <View
@@ -542,11 +573,11 @@ export default function CourseDetailScreen() {
         ) : (
           <TouchableOpacity
             style={{
-              backgroundColor: "#009990",
+              backgroundColor: isCourseInCart ? "#FF6347" : "#009990", // Đổi màu nút: đỏ nếu đã có, xanh nếu chưa có
               paddingVertical: 16,
               borderRadius: 4,
             }}
-            onPress={handleAddToCart}
+            onPress={isCourseInCart ? handleRemoveFromCart : handleAddToCart}
           >
             <Text
               style={{
@@ -556,7 +587,7 @@ export default function CourseDetailScreen() {
                 fontFamily: "Nunito_600SemiBold",
               }}
             >
-              Thêm vào giỏ hàng
+              {isCourseInCart ? "Xóa khỏi giỏ hàng" : "Thêm vào giỏ hàng"}
             </Text>
           </TouchableOpacity>
         )}
@@ -564,3 +595,27 @@ export default function CourseDetailScreen() {
     </LinearGradient>
   );
 }
+
+const styles = StyleSheet.create({
+  errorContainer: {
+    position: "absolute",
+    top: 50,
+    left: 16,
+    right: 16,
+    backgroundColor: "#FF6347",
+    padding: 10,
+    borderRadius: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  errorText: {
+    color: "#fff",
+    fontSize: 14,
+    fontFamily: "Nunito_600SemiBold",
+  },
+  clearErrorButton: {
+    padding: 5,
+  },
+});

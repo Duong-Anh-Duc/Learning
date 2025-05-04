@@ -1,13 +1,15 @@
-import { useCart } from "@/context/CartContext"; // Import useCart
-import useUser from "@/hooks/auth/useUser";
+// frontend/components/header/Header.tsx
+import { useCart } from "@/context/CartContext";
+import { useUser } from "@/context/UserContext";
 import { Raleway_700Bold } from "@expo-google-fonts/raleway";
 import { Feather } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 import { router } from "expo-router";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import NotificationIcon from "../notification/NotificationIcon";
 
 export default function Header() {
-  const { cartItems } = useCart(); // Lấy cartItems từ CartContext
+  const { cartItems } = useCart();
   const { user } = useUser();
 
   let [fontsLoaded, fontError] = useFonts({
@@ -37,19 +39,22 @@ export default function Header() {
           </Text>
         </View>
       </View>
-      <TouchableOpacity
-        style={styles.bellButton}
-        onPress={() => router.push("/(routes)/cart")}
-      >
-        <View>
-          <Feather name="shopping-bag" size={26} color={"black"} />
-          <View style={styles.bellContainer}>
-            <Text style={{ color: "#fff", fontSize: 14 }}>
-              {cartItems?.length || 0} {/* Hiển thị số lượng từ cartItems */}
-            </Text>
+      <View style={styles.rightIcons}>
+        <NotificationIcon />
+        <TouchableOpacity
+          style={styles.bellButton}
+          onPress={() => router.push("/(routes)/cart")}
+        >
+          <View>
+            <Feather name="shopping-bag" size={26} color={"black"} />
+            <View style={styles.bellContainer}>
+              <Text style={{ color: "#fff", fontSize: 14 }}>
+                {cartItems?.length || 0}
+              </Text>
+            </View>
           </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -63,23 +68,24 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     width: "90%",
   },
-
   headerWrapper: {
     flexDirection: "row",
     alignItems: "center",
   },
-
+  rightIcons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   image: {
     width: 45,
     height: 45,
     marginRight: 8,
     borderRadius: 100,
   },
-
   text: {
     fontSize: 16,
   },
-
   bellButton: {
     borderWidth: 1,
     borderColor: "#E1E2E5",
@@ -89,7 +95,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 8,
   },
-
   bellContainer: {
     width: 20,
     height: 20,
@@ -102,6 +107,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   helloText: { color: "#7C7C80", fontSize: 14 },
 });

@@ -1,50 +1,27 @@
+// backend/controllers/course.controller.ts
 import axios from "axios";
 import cloudinary from "cloudinary";
 import ejs from "ejs";
 import { NextFunction, Request, Response } from "express";
+import fs from "fs";
 import mongoose from "mongoose";
 import path from "path";
 import { CatchAsyncError } from "../middleware/catchAsyncErrors";
-import CourseModel from "../models/course.model";
+import CourseModel, { ICourseData } from "../models/course.model";
 import NotificationModel from "../models/notification.Model";
-import { createCourse, getAllCoursesService } from "../services/course.service";
+import { io } from "../server"; // Import io để phát sự kiện
+import { getAllCoursesService } from "../services/course.service";
 import ErrorHandler from "../utils/ErrorHandler";
 import { redis } from "../utils/redis";
 import sendMail from "../utils/sendMail";
-
-// upload course
-export const uploadCourse = CatchAsyncError(
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const data = req.body;
-      const thumbnail = data.thumbnail;
-      if (thumbnail) {
-        const myCloud = await cloudinary.v2.uploader.upload(thumbnail, {
-          folder: "courses",
-        });
-
-        data.thumbnail = {
-          public_id: myCloud.public_id,
-          url: myCloud.secure_url,
-        };
-      }
-      createCourse(data, res, next);
-    } catch (error: any) {
-      return next(new ErrorHandler(error.message, 500));
-    }
-  }
-);
 
 // edit course
 export const editCourse = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const data = req.body;
-
       const thumbnail = data.thumbnail;
-
       const courseId = req.params.id;
-
       const courseData = await CourseModel.findById(courseId) as any;
 
       if (thumbnail && !thumbnail.startsWith("https")) {
@@ -69,11 +46,24 @@ export const editCourse = CatchAsyncError(
 
       const course = await CourseModel.findByIdAndUpdate(
         courseId,
-        {
-          $set: data,
-        },
+        { $set: data },
         { new: true }
       );
+
+      // Cập nhật Redis
+      await redis.set(courseId, JSON.stringify(course), "EX", 604800);
+
+      // Phát sự kiện courseUpdated đến tất cả người dùng
+      io.to("allUsers").emit("courseUpdated", {
+        message: `Khóa học ${course?.name} đã được cập nhật!`,
+        course: {
+          _id: course?._id,
+          name: course?.name,
+          thumbnail: course?.thumbnail,
+          price: course?.price,
+          estimatedPrice: course?.estimatedPrice,
+        },
+      });
 
       res.status(201).json({
         success: true,
@@ -104,7 +94,7 @@ export const getSingleCourse = CatchAsyncError(
           "-courseData.videoUrl -courseData.suggestion -courseData.questions -courseData.links"
         );
 
-        await redis.set(courseId, JSON.stringify(course), "EX", 604800); // 7days
+        await redis.set(courseId, JSON.stringify(course), "EX", 604800); // 7 days
 
         res.status(200).json({
           success: true,
@@ -139,15 +129,12 @@ export const getAllCourses = CatchAsyncError(
 export const getCourseByUser = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-
       const userCourseList = req.user?.courses;
-      console.log(req.user?.courses)
       const courseId = req.params.id;
-      console.log(courseId)
       const courseExists = userCourseList?.find(
         (course: any) => course.courseId.toString() === courseId.toString()
       );
-      console.log(courseExists)
+
       if (!courseExists) {
         return next(
           new ErrorHandler("You are not eligible to access this course", 404)
@@ -178,7 +165,7 @@ export const addQuestion = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { question, courseId, contentId }: IAddQuestionData = req.body;
-      
+
       const course = await CourseModel.findById(courseId);
 
       if (!mongoose.Types.ObjectId.isValid(contentId)) {
@@ -324,8 +311,6 @@ export const addReview = CatchAsyncError(
       const userCourseList = req.user?.courses;
 
       const courseId = req.params.id;
-      console.log(userCourseList)
-      // check if courseId already exists in userCourseList based on _id
       const courseExists = userCourseList?.some(
         (course: any) => course.courseId.toString() === courseId.toString()
       );
@@ -355,12 +340,12 @@ export const addReview = CatchAsyncError(
       });
 
       if (course) {
-        course.ratings = avg / course.reviews.length; // one example we have 2 reviews one is 5 another one is 4 so math working like this = 9 / 2  = 4.5 ratings
+        course.ratings = avg / course.reviews.length;
       }
 
       await course?.save();
 
-      await redis.set(courseId, JSON.stringify(course), "EX", 604800); // 7days
+      await redis.set(courseId, JSON.stringify(course), "EX", 604800); // 7 days
 
       // create notification
       await NotificationModel.create({
@@ -368,7 +353,6 @@ export const addReview = CatchAsyncError(
         title: "New Review Received",
         message: `${req.user?.name} has given a review in ${course?.name}`,
       });
-
 
       res.status(200).json({
         success: true,
@@ -381,15 +365,16 @@ export const addReview = CatchAsyncError(
 );
 
 // add reply in review
-interface IAddReviewData {
+interface IAddReplyData {
   comment: string;
   courseId: string;
   reviewId: string;
 }
+
 export const addReplyToReview = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { comment, courseId, reviewId } = req.body as IAddReviewData;
+      const { comment, courseId, reviewId } = req.body as IAddReplyData;
 
       const course = await CourseModel.findById(courseId);
 
@@ -417,10 +402,10 @@ export const addReplyToReview = CatchAsyncError(
       }
 
       review.commentReplies?.push(replyData);
-      
+
       await course?.save();
 
-      await redis.set(courseId, JSON.stringify(course), "EX", 604800); // 7days
+      await redis.set(courseId, JSON.stringify(course), "EX", 604800); // 7 days
 
       res.status(200).json({
         success: true,
@@ -491,8 +476,8 @@ export const generateVideoUrl = CatchAsyncError(
     }
   }
 );
-// backend/controllers/course.controller.ts
-// backend/controllers/course.controller.ts
+
+// Filter courses
 export const filterCourses = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -559,6 +544,8 @@ export const filterCourses = CatchAsyncError(
     }
   }
 );
+
+// Get categories
 export const getCategories = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -576,6 +563,193 @@ export const getCategories = CatchAsyncError(
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 500));
+    }
+  }
+);
+
+// Create a new course (large course)
+export const kienaddCourse = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const {
+        name,
+        description,
+        categories,
+        price,
+        estimatedPrice,
+        tags,
+        level,
+        benefits,
+        prerequisites,
+        courseData,
+      } = req.body;
+
+      // Kiểm tra các trường bắt buộc
+      if (!name || !description || !categories || !price || !tags || !level) {
+        return next(new ErrorHandler("Vui lòng cung cấp đầy đủ các trường bắt buộc", 400));
+      }
+
+      // Xử lý thumbnail
+      let thumbnail = {};
+      if (req.files && (req.files as any).thumbnail) {
+        const thumbnailFile = (req.files as any).thumbnail[0];
+        const myCloud = await cloudinary.v2.uploader.upload(thumbnailFile.path, {
+          folder: "courses/thumbnails",
+          resource_type: "image",
+        });
+        thumbnail = {
+          public_id: myCloud.public_id,
+          url: myCloud.secure_url,
+        };
+        fs.unlinkSync(thumbnailFile.path); // Xóa file tạm
+      }
+
+      // Xử lý demo video
+      let demoUrl = req.body.demoUrl || "";
+      if (req.files && (req.files as any).demoVideo) {
+        const demoVideoFile = (req.files as any).demoVideo[0];
+        const myCloud = await cloudinary.v2.uploader.upload(demoVideoFile.path, {
+          folder: "courses/videos",
+          resource_type: "video",
+        });
+        demoUrl = myCloud.secure_url;
+        fs.unlinkSync(demoVideoFile.path); // Xóa file tạm
+      }
+
+      // Xử lý video trong courseData
+      let parsedCourseData = courseData ? JSON.parse(courseData) : [];
+      if (req.files && (req.files as any).courseVideos) {
+        const courseVideoFiles = (req.files as any).courseVideos;
+        for (let i = 0; i < courseVideoFiles.length && i < parsedCourseData.length; i++) {
+          const myCloud = await cloudinary.v2.uploader.upload(courseVideoFiles[i].path, {
+            folder: "courses/videos",
+            resource_type: "video",
+          });
+          parsedCourseData[i].videoUrl = myCloud.secure_url;
+          fs.unlinkSync(courseVideoFiles[i].path); // Xóa file tạm
+        }
+      }
+
+      // Chuẩn bị dữ liệu khóa học
+      const courseDataToSave = {
+        name,
+        description,
+        categories,
+        price,
+        estimatedPrice: estimatedPrice || undefined,
+        thumbnail,
+        tags,
+        level,
+        demoUrl,
+        benefits: benefits ? JSON.parse(benefits) : [],
+        prerequisites: prerequisites ? JSON.parse(prerequisites) : [],
+        courseData: parsedCourseData,
+        ratings: 0,
+        purchased: 0,
+      };
+
+      // Tạo khóa học mới
+      const course = await CourseModel.create(courseDataToSave);
+
+      // Lưu khóa học vào Redis
+      await redis.set(course._id.toString(), JSON.stringify(course), "EX", 604800); // Lưu 7 ngày
+
+      // Phát sự kiện newCourse đến tất cả người dùng
+      io.to("allUsers").emit("newCourse", {
+        message: `Khóa học mới: ${course.name} đã được thêm!`,
+        course: {
+          _id: course._id,
+          name: course.name,
+          thumbnail: course.thumbnail,
+          price: course.price,
+        },
+      });
+
+      res.status(201).json({
+        success: true,
+        message: "Khóa học được tạo thành công",
+        course,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+// Add a new lesson to a course (small lesson)
+export const kienaddminiCourse = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { courseId, title, description, videoSection, videoLength, videoPlayer, links, suggestion, questions } = req.body;
+
+      // Kiểm tra các trường bắt buộc
+      if (!courseId || !title || !description || !videoSection || !videoLength || !videoPlayer) {
+        return next(new ErrorHandler("Vui lòng cung cấp đầy đủ các trường bắt buộc cho bài học", 400));
+      }
+
+      // Tìm khóa học theo ID
+      const course = await CourseModel.findById(courseId);
+      if (!course) {
+        return next(new ErrorHandler("Không tìm thấy khóa học", 404));
+      }
+
+      // Xử lý video nếu có
+      let videoUrl = "";
+      if (req.files && (req.files as any).videoFile) {
+        const videoFile = (req.files as any).videoFile[0];
+        const myCloud = await cloudinary.v2.uploader.upload(videoFile.path, {
+          folder: "courses/videos",
+          resource_type: "video",
+        });
+        videoUrl = myCloud.secure_url;
+        fs.unlinkSync(videoFile.path); // Xóa file tạm
+      }
+
+      // Xử lý ảnh thumbnail nếu có
+      let videoThumbnail = {};
+      if (req.files && (req.files as any).thumbnailFile) {
+        const thumbnailFile = (req.files as any).thumbnailFile[0];
+        const myCloud = await cloudinary.v2.uploader.upload(thumbnailFile.path, {
+          folder: "courses/thumbnails",
+          resource_type: "image",
+        });
+        videoThumbnail = {
+          public_id: myCloud.public_id,
+          url: myCloud.secure_url,
+        };
+        fs.unlinkSync(thumbnailFile.path); // Xóa file tạm
+      }
+
+      // Tạo courseData mới
+      const newCourseData = {
+        title,
+        description,
+        videoUrl,
+        videoSection,
+        videoLength: Number(videoLength),
+        videoPlayer,
+        links: links ? JSON.parse(links) : [],
+        suggestion: suggestion || "",
+        questions: questions ? JSON.parse(questions) : [],
+        videoThumbnail,
+      } as ICourseData; // Ép kiểu thành ICourseData
+
+      // Thêm courseData vào mảng courseData của khóa học
+      course.courseData.push(newCourseData);
+
+      // Lưu lại khóa học
+      await course.save();
+
+      // Cập nhật Redis
+      await redis.set(course._id.toString(), JSON.stringify(course), "EX", 604800); // Lưu 7 ngày
+
+      res.status(200).json({
+        success: true,
+        message: "Đã thêm bài học nhỏ vào khóa học thành công",
+        course,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
     }
   }
 );

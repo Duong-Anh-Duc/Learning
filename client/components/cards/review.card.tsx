@@ -1,3 +1,4 @@
+import { ReviewType } from "@/types/courses";
 import Ratings from "@/utils/ratings";
 import { Image, Text, View } from "react-native";
 

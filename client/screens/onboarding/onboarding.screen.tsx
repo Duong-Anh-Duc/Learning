@@ -2,7 +2,11 @@ import { Nunito_400Regular, Nunito_700Bold } from '@expo-google-fonts/nunito';
 import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'; // Thêm StyleSheet
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  heightPercentageToDP as hp,
+  widthPercentageToDP as wp,
+} from 'react-native-responsive-screen';
 
 const OnBoardingScreen = () => {
   let [fontsLoaded, fontError] = useFonts({
@@ -72,59 +76,66 @@ const OnBoardingScreen = () => {
   );
 };
 
-// Định nghĩa styles cục bộ
+// Định nghĩa styles theo phong cách từ tệp mẫu
 const styles = StyleSheet.create({
   firstContainer: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 50,
   },
   logo: {
-    width: 100,
-    height: 100,
+    width: wp('23%'),
+    height: hp('10%'),
   },
   titleWrapper: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  titleText: {
-    fontSize: 24,
-    color: '#000',
   },
   titleTextShape1: {
-    width: 20,
-    height: 20,
-    marginRight: 10,
+    position: 'absolute',
+    left: -28,
+    top: -20,
+    width: wp('5%'), // Điều chỉnh kích thước tương đối
+    height: hp('3%'),
+  },
+  titleText: {
+    fontSize: hp('4%'),
+    textAlign: 'center',
+    color: 'white', // Màu chữ giống với mẫu
   },
   titleTextShape2: {
-    width: 20,
-    height: 20,
-    marginLeft: 10,
+    position: 'absolute',
+    right: -40,
+    top: -20,
+    width: wp('5%'),
+    height: hp('3%'),
   },
   titleShape3: {
-    width: 30,
-    height: 30,
-    marginBottom: 10,
+    position: 'absolute',
+    left: 60,
+    width: wp('8%'), // Điều chỉnh kích thước tương đối
+    height: hp('4%'),
   },
   dscpWrapper: {
-    marginVertical: 20,
-    alignItems: 'center',
+    marginTop: 30,
   },
   dscpText: {
-    fontSize: 16,
-    color: '#333',
     textAlign: 'center',
+    color: '#575757',
+    fontSize: hp('2%'),
   },
   buttonWrapper: {
     backgroundColor: '#009990',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
+    width: wp('92%'),
+    paddingVertical: 18,
+    borderRadius: 4,
+    marginTop: 40,
+    alignSelf: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   buttonText: {
     color: 'white',
-    fontSize: 16,
+    textAlign: 'center',
+    fontSize: hp('2%'), // Điều chỉnh kích thước chữ tương đối
   },
 });
 
