@@ -15,7 +15,6 @@ import {
 import {
   AntDesign,
   Entypo,
-  FontAwesome,
   Fontisto,
   Ionicons,
   SimpleLineIcons,
@@ -252,11 +251,17 @@ export default function SignUpScreen() {
       console.log("Navigating to verifyAccount...");
       router.push("/(routes)/verifyAccount");
     } catch (error: any) {
-      console.error("Error during registration:", error.response?.data || error.message);
+      console.error(
+        "Error during registration:",
+        error.response?.data || error.message
+      );
       setButtonSpinner(false);
-      Toast.show(error.response?.data?.message || "Đăng ký thất bại, vui lòng thử lại!", {
-        type: "danger",
-      });
+      Toast.show(
+        error.response?.data?.message || "Đăng ký thất bại, vui lòng thử lại!",
+        {
+          type: "danger",
+        }
+      );
     }
   };
 
@@ -283,7 +288,9 @@ export default function SignUpScreen() {
               keyboardType="default"
               value={userInfo.name}
               placeholder="Tên người dùng"
-              onChangeText={(value) => setUserInfo({ ...userInfo, name: value })}
+              onChangeText={(value) =>
+                setUserInfo({ ...userInfo, name: value })
+              }
               onSubmitEditing={validateName} // Validate khi nhấn "Done"/"Submit"
               returnKeyType="next"
             />
@@ -308,7 +315,9 @@ export default function SignUpScreen() {
               keyboardType="email-address"
               value={userInfo.email}
               placeholder="Nhập Email"
-              onChangeText={(value) => setUserInfo({ ...userInfo, email: value })}
+              onChangeText={(value) =>
+                setUserInfo({ ...userInfo, email: value })
+              }
               onSubmitEditing={validateEmail} // Validate khi nhấn "Done"/"Submit"
               returnKeyType="next"
             />
@@ -333,7 +342,9 @@ export default function SignUpScreen() {
                 secureTextEntry={!isPasswordVisible}
                 value={userInfo.password}
                 placeholder="Mật khẩu"
-                onChangeText={(value) => setUserInfo({ ...userInfo, password: value })}
+                onChangeText={(value) =>
+                  setUserInfo({ ...userInfo, password: value })
+                }
                 onSubmitEditing={validatePassword} // Validate khi nhấn "Done"/"Submit"
                 returnKeyType="next"
               />
@@ -374,13 +385,17 @@ export default function SignUpScreen() {
                 secureTextEntry={!isConfirmPasswordVisible}
                 value={userInfo.confirmPassword}
                 placeholder="Nhập lại mật khẩu"
-                onChangeText={(value) => setUserInfo({ ...userInfo, confirmPassword: value })}
+                onChangeText={(value) =>
+                  setUserInfo({ ...userInfo, confirmPassword: value })
+                }
                 onSubmitEditing={handleSignUp} // Gọi handleSignUp khi nhấn "Done"/"Submit"
                 returnKeyType="done"
               />
               <TouchableOpacity
                 style={styles.visibleIcon}
-                onPress={() => setConfirmPasswordVisible(!isConfirmPasswordVisible)}
+                onPress={() =>
+                  setConfirmPasswordVisible(!isConfirmPasswordVisible)
+                }
               >
                 {isConfirmPasswordVisible ? (
                   <Ionicons
@@ -400,7 +415,9 @@ export default function SignUpScreen() {
               />
             </View>
             {error.confirmPassword && (
-              <View style={[commonStyles.errorContainer, { top: 240 }]}> {/* Điều chỉnh top để hiển thị rõ hơn */}
+              <View style={[commonStyles.errorContainer, { top: 240 }]}>
+                {" "}
+                {/* Điều chỉnh top để hiển thị rõ hơn */}
                 <Entypo name="cross" size={18} color={"red"} />
                 <Text style={{ color: "red", fontSize: 11, marginTop: -1 }}>
                   {error.confirmPassword}
@@ -433,23 +450,6 @@ export default function SignUpScreen() {
               </Text>
             )}
           </TouchableOpacity>
-
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              marginTop: 20,
-              gap: 10,
-            }}
-          >
-            <TouchableOpacity>
-              <FontAwesome name="google" size={30} />
-            </TouchableOpacity>
-            <TouchableOpacity>
-              <FontAwesome name="github" size={30} />
-            </TouchableOpacity>
-          </View>
 
           <View style={styles.signupRedirect}>
             <Text style={{ fontSize: 18, fontFamily: "Raleway_600SemiBold" }}>
