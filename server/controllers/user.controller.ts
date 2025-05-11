@@ -502,21 +502,30 @@ export const deleteUser = CatchAsyncError(
 export const getUserCourses = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // Lấy userId từ thông tin đã được xác thực (thường được thêm vào req trong middleware auth)
       const userId = req.user?._id;
+
+      // Nếu không có userId, tức là người dùng chưa đăng nhập
       if (!userId) {
         return next(new ErrorHandler("Người dùng chưa đăng nhập", 401));
       }
 
+      // Tìm người dùng theo ID
       const user = await userModel.findById(userId);
+      
+      // Nếu người dùng không tồn tại trong database
       if (!user) {
         return next(new ErrorHandler("Người dùng không tồn tại", 404));
       }
 
+      // Trả về danh sách các khóa học của người dùng (nếu không có thì trả mảng rỗng)
       res.status(200).json({
         success: true,
         courses: user.courses || [],
       });
+
     } catch (error: any) {
+      // Nếu có lỗi xảy ra trong quá trình thực thi, trả về lỗi server
       return next(new ErrorHandler(error.message, 500));
     }
   }
