@@ -40,4 +40,36 @@ export default function EnrolledCoursesScreen() {
     };
 
     fetchCourses();
+  }, [user, loading]); // Dependency là user và loading
+
+  if (loader || loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#009990" />
+        <Text style={{ marginTop: 10, fontSize: 16, color: "#333" }}>
+          Đang tải...
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <LinearGradient colors={["#009990", "#F6F7F9"]} style={{ flex: 1 }}>
+      <FlatList
+        data={courses}
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item) => item._id.toString()}
+        renderItem={({ item }) => <CourseCard item={item} />}
+        ListEmptyComponent={() => (
+          <View
+            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+          >
+            <Text style={{ fontSize: 16, color: "#333" }}>
+              Bạn chưa đăng ký khóa học nào!
+            </Text>
+          </View>
+        )}
+      />
+    </LinearGradient>
+  );
 }
