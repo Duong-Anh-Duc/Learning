@@ -45,6 +45,46 @@ export const getCourseByUserService = async (
   if (!course) {
     throw new ErrorHandler("Khóa học không tồn tại", 404);
   }
+  export const addQuestionService = async (
+    user: any,
+    questionData: { question: string; courseId: string; contentId: string }
+  ) => {
+    const { question, courseId, contentId } = questionData;
+
+    const course = await CourseModel.findById(courseId);
+    if (!course) {
+      throw new ErrorHandler("Khóa học không tồn tại", 404);
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(contentId)) {
+      throw new ErrorHandler("ID nội dung không hợp lệ", 400);
+    }
+
+    const courseContent = course?.courseData?.find((item: any) =>
+      item._id.equals(contentId)
+    );
+
+    if (!courseContent) {
+      throw new ErrorHandler("ID nội dung không hợp lệ", 400);
+    }
+
+    const newQuestion: any = {
+      user,
+      question,
+      questionReplies: [],
+    };
+
+    courseContent.questions.push(newQuestion);
+
+    await NotificationModel.create({
+      user: user?._id,
+      title: "Câu hỏi mới đã được nhận",
+      message: `Bạn có một câu hỏi mới trong ${courseContent.title}`,
+    });
+
+    await course.save();
+    return course;
+  };
 
   return course.courseData;
 };
