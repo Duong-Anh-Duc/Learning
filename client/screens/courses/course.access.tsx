@@ -1,24 +1,24 @@
 // frontend/app/(routes)/course-access/index.tsx
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-} from "react-native";
-import React, { useEffect, useState } from "react";
-import { router, useLocalSearchParams } from "expo-router";
-import axios from "axios";
-import { SERVER_URI } from "@/utils/uri";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { FontAwesome } from "@expo/vector-icons";
-import useUser from "@/hooks/auth/useUser";
-import { Toast } from "react-native-toast-notifications";
 import ReviewCard from "@/components/cards/review.card";
-import { CoursesType, CourseDataType, ReviewType } from "@/types/courses";
+import useUser from "@/hooks/auth/useUser";
+import { CourseDataType, CoursesType, ReviewType } from "@/types/courses";
+import { SERVER_URI } from "@/utils/uri";
+import { FontAwesome } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { widthPercentageToDP } from "react-native-responsive-screen";
+import { Toast } from "react-native-toast-notifications";
 
 export default function CourseAccessScreen() {
   const [isLoading, setIsLoading] = useState(true);

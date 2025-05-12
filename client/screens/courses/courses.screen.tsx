@@ -1,4 +1,6 @@
 // frontend/app/(routes)/courses/index.tsx
+import CourseCard from "@/components/cards/course.card";
+import { CategoryType, CoursesType } from "@/types/courses";
 import { SERVER_URI } from "@/utils/uri";
 import {
   Nunito_400Regular,
@@ -15,8 +17,6 @@ import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
-import CourseCard from "@/components/cards/course.card";
-import { CoursesType, CategoryType } from "@/types/courses";
 
 export default function CoursesScreen() {
   const [courses, setCourses] = useState<CoursesType[]>([]);
