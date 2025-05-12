@@ -29,6 +29,25 @@ export const getSingleCourseService = async (courseId: string) => {
   await redis.set(courseId, JSON.stringify(course), "EX", 604800);
   return course;
 };
+export const getCourseByUserService = async (
+  userCourses: any[],
+  courseId: string
+) => {
+  const courseExists = userCourses?.find(
+    (course: any) => course.courseId.toString() === courseId.toString()
+  );
+
+  if (!courseExists) {
+    throw new ErrorHandler("Bạn không có quyền truy cập khóa học này", 404);
+  }
+
+  const course = await CourseModel.findById(courseId);
+  if (!course) {
+    throw new ErrorHandler("Khóa học không tồn tại", 404);
+  }
+
+  return course.courseData;
+};
 
 // Get All Courses
 export const getAllCoursesService = async (res: Response) => {
