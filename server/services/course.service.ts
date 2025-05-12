@@ -88,6 +88,48 @@ export const getCourseByUserService = async (
 
   return course.courseData;
 };
+export const addAnswerService = async (
+  user: any,
+  answerData: {
+    answer: string;
+    courseId: string;
+    contentId: string;
+    questionId: string;
+  }
+) => {
+  const { answer, courseId, contentId, questionId } = answerData;
+
+  const course = await CourseModel.findById(courseId);
+  if (!course) {
+    throw new ErrorHandler("Khóa học không tồn tại", 404);
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(contentId)) {
+    throw new ErrorHandler("ID nội dung không hợp lệ", 400);
+  }
+
+  const courseContent = course?.courseData?.find((item: any) =>
+    item._id.equals(contentId)
+  );
+
+  if (!courseContent) {
+    throw new ErrorHandler("ID nội dung không hợp lệ", 400);
+  }
+
+  const question = courseContent?.questions?.find((item: any) =>
+    item._id.equals(questionId)
+  );
+
+  if (!question) {
+    throw new ErrorHandler("ID câu hỏi không hợp lệ", 400);
+  }
+
+  const newAnswer: any = {
+    user,
+    answer,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 
 // Get All Courses
 export const getAllCoursesService = async (res: Response) => {
