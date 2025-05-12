@@ -12,12 +12,6 @@ export const createCourse = CatchAsyncError(
     });
   }
 );
-export const getAllCoursesService = async () => {
-  const courses = await CourseModel.find().select(
-    "-courseData.videoUrl -courseData.suggestion -courseData.questions -courseData.links"
-  );
-  return courses;
-};
 
 // Get All Courses
 export const getAllCoursesService = async (res: Response) => {
