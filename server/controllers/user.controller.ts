@@ -1,26 +1,28 @@
-// ... (các import giữ nguyên)
-
-import cloudinary from "cloudinary";
 import { NextFunction, Request, Response } from "express";
-import jwt, { JwtPayload, Secret } from "jsonwebtoken";
 import { CatchAsyncError } from "../middleware/catchAsyncErrors";
-import userModel, { IUser } from "../models/user.model";
 import {
   activateUserService,
+  addToFavoritesService,
+  banUserService,
+  deleteUserService,
+  forgotPasswordService,
+  getAllUsersService,
+  getFavoriteCoursesService,
+  getUserCoursesService,
+  getUserInfoService,
+  loginUserService,
+  logoutUserService,
   registrationUserService,
+  removeFromFavoritesService,
+  resetPasswordService,
+  updateAccessTokenService,
+  updatePasswordService,
+  updateProfilePictureService,
+  updateUserInfoService,
+  updateUserRoleService,
 } from "../services/user.service";
 import ErrorHandler from "../utils/ErrorHandler";
-import { sendToken } from "../utils/jwt";
-import { redis } from "../utils/redis";
-import sendMail from "../utils/sendMail";
-
-// Đăng ký người dùng
-interface IRegistrationBody {
-  name: string;
-  email: string;
-  password: string;
-  avatar?: string;
-}
+import { accessTokenOptions, refreshTokenOptions } from "../utils/jwt";
 
 export const registrationUser = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -54,54 +56,20 @@ export const activateUser = CatchAsyncError(
   }
 );
 
-// Đăng nhập người dùng
-interface ILoginRequest {
-  email: string;
-  password: string;
-}
-
-// controllers/user.controller.ts
 export const loginUser = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { email, password } = req.body as ILoginRequest;
-      if (!email || !password) {
-        return next(new ErrorHandler("Vui lòng nhập email và mật khẩu", 400));
-      }
+      const { email, password } = req.body;
+      const { user, accessToken, refreshToken } = await loginUserService({ email, password });
 
-      const user = await userModel.findOne({ email }).select("+password");
+      res.cookie("access_token", accessToken, accessTokenOptions);
+      res.cookie("refresh_token", refreshToken, refreshTokenOptions);
 
-      if (!user) {
-        return next(new ErrorHandler("Email hoặc mật khẩu không hợp lệ", 400));
-      }
-
-      // Kiểm tra trạng thái ban
-      if (user.isBanned) {
-        return next(new ErrorHandler("Tài khoản của bạn đã bị khóa!", 403));
-      }
-
-      const isPasswordMatch = await user.comparePassword(password);
-      if (!isPasswordMatch) {
-        return next(new ErrorHandler("Email hoặc mật khẩu không hợp lệ", 400));
-      }
-      sendToken(user, 200, res);
-    } catch (error: any) {
-      return next(new ErrorHandler(error.message, 400));
-    }
-  }
-);
-
-// Đăng xuất người dùng
-export const logoutUser = CatchAsyncError(
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      res.cookie("access_token", "", { maxAge: 1 });
-      res.cookie("refresh_token", "", { maxAge: 1 });
-      const userId = req.user?._id || "";
-      redis.del(userId);
       res.status(200).json({
         success: true,
-        message: "Đăng xuất thành công",
+        user,
+        accessToken,
+        refreshToken,
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
@@ -109,101 +77,71 @@ export const logoutUser = CatchAsyncError(
   }
 );
 
-// Cập nhật access token
+export const logoutUser = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?._id || "";
+      const result = await logoutUserService(userId);
+
+      res.cookie("access_token", "", { maxAge: 1 });
+      res.cookie("refresh_token", "", { maxAge: 1 });
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
 export const updateAccessToken = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const refresh_token = req.headers["refresh-token"] as string;
-      const decoded = jwt.verify(
-        refresh_token,
-        process.env.REFRESH_TOKEN as string
-      ) as JwtPayload;
-
-      const message = "Không thể làm mới token";
-      if (!decoded) {
-        return next(new ErrorHandler(message, 400));
-      }
-      const session = await redis.get(decoded.id as string);
-
-      if (!session) {
-        return next(
-          new ErrorHandler(
-            "Vui lòng đăng nhập để truy cập tài nguyên này!",
-            400
-          )
-        );
-      }
-
-      const user = JSON.parse(session);
-
+      const { user, accessToken, refreshToken } = await updateAccessTokenService(refresh_token);
       req.user = user;
 
-      await redis.set(user._id, JSON.stringify(user), "EX", 604800); // 7 ngày
+      res.cookie("access_token", accessToken, accessTokenOptions);
+      res.cookie("refresh_token", refreshToken, refreshTokenOptions);
 
-      return next();
+      res.status(200).json({
+        success: true,
+        user,
+        accessToken,
+        refreshToken,
+      });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
     }
   }
 );
 
-// Lấy thông tin người dùng
 export const getUserInfo = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?._id;
-      getUserById(userId, res);
+      const user = await getUserInfoService(userId);
+      console.log(userId)
+      console.log(user)
+      res.status(201).json({
+        success: true,
+        user,
+      });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
     }
   }
 );
 
-interface ISocialAuthBody {
-  email: string;
-  name: string;
-  avatar: string;
-}
-
-// Đăng nhập bằng mạng xã hội
-export const socialAuth = CatchAsyncError(
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { email, name, avatar } = req.body as ISocialAuthBody;
-      const user = await userModel.findOne({ email });
-      if (!user) {
-        const newUser = await userModel.create({ email, name, avatar });
-        sendToken(newUser, 200, res);
-      } else {
-        sendToken(user, 200, res);
-      }
-    } catch (error: any) {
-      return next(new ErrorHandler(error.message, 400));
-    }
-  }
-);
-
-// Cập nhật thông tin người dùng
-interface IUpdateUserInfo {
-  name?: string;
-  email?: string;
-}
 
 export const updateUserInfo = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { name } = req.body as IUpdateUserInfo;
-
+      const { name } = req.body;
       const userId = req.user?._id;
-      const user = await userModel.findById(userId);
-
-      if (name && user) {
-        user.name = name;
-      }
-
-      await user?.save();
-
-      await redis.set(userId, JSON.stringify(user));
+      const user = await updateUserInfoService(userId, { name });
 
       res.status(201).json({
         success: true,
@@ -214,39 +152,13 @@ export const updateUserInfo = CatchAsyncError(
     }
   }
 );
-
-// Cập nhật mật khẩu
-interface IUpdatePassword {
-  oldPassword: string;
-  newPassword: string;
-}
 
 export const updatePassword = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { oldPassword, newPassword } = req.body as IUpdatePassword;
-
-      if (!oldPassword || !newPassword) {
-        return next(new ErrorHandler("Vui lòng nhập mật khẩu cũ và mới", 400));
-      }
-
-      const user = await userModel.findById(req.user?._id).select("+password");
-
-      if (user?.password === undefined) {
-        return next(new ErrorHandler("Người dùng không hợp lệ", 400));
-      }
-
-      const isPasswordMatch = await user?.comparePassword(oldPassword);
-
-      if (!isPasswordMatch) {
-        return next(new ErrorHandler("Mật khẩu cũ không đúng", 400));
-      }
-
-      user.password = newPassword;
-
-      await user.save();
-
-      await redis.set(req.user?._id, JSON.stringify(user));
+      const { oldPassword, newPassword } = req.body;
+      const userId = req.user?._id;
+      const user = await updatePasswordService(userId, { oldPassword, newPassword });
 
       res.status(201).json({
         success: true,
@@ -258,52 +170,16 @@ export const updatePassword = CatchAsyncError(
   }
 );
 
-// Quên mật khẩu
-interface IForgotPasswordRequest {
-  email: string;
-}
-
 export const forgotPassword = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
-    console.log("OK");
     try {
-      const { email } = req.body as IForgotPasswordRequest;
-
-      if (!email) {
-        return next(new ErrorHandler("Vui lòng nhập email của bạn", 400));
-      }
-
-      const user = await userModel.findOne({ email });
-      if (!user) {
-        return next(new ErrorHandler("Email không tồn tại", 404));
-      }
-
-      // Tạo mã reset (4 chữ số)
-      const resetCode = Math.floor(1000 + Math.random() * 9000).toString();
-
-      // Tạo token chứa mã reset
-      const resetToken = jwt.sign(
-        { email, resetCode },
-        process.env.RESET_PASSWORD_SECRET as Secret,
-        { expiresIn: "10m" }
-      );
-
-      // Lưu token vào Redis để sử dụng sau
-      await redis.set(`reset:${email}`, resetToken, "EX", 600); // Hết hạn sau 10 phút
-
-      // Gửi email chứa mã reset
-      const data = { user: { name: user.name }, resetCode };
-      await sendMail({
-        email: user.email,
-        subject: "Đặt lại mật khẩu",
-        template: "reset-password-mail.ejs",
-        data,
-      });
+      const { email } = req.body;
+      const result = await forgotPasswordService(email);
 
       res.status(200).json({
         success: true,
-        message: `Mã đặt lại đã được gửi đến ${email}. Vui lòng kiểm tra hộp thư của bạn.`,
-        resetToken, // Gửi token để frontend sử dụng sau
+        message: result.message,
+        resetToken: result.resetToken,
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 500));
@@ -311,73 +187,15 @@ export const forgotPassword = CatchAsyncError(
   }
 );
 
-// Đặt lại mật khẩu
-interface IResetPasswordRequest {
-  resetToken: string;
-  resetCode: string;
-  newPassword: string;
-}
-
 export const resetPassword = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
-    console.log("OK");
     try {
-      const { resetToken, resetCode, newPassword } =
-        req.body as IResetPasswordRequest;
-
-      if (!resetToken || !resetCode || !newPassword) {
-        return next(
-          new ErrorHandler("Vui lòng cung cấp đầy đủ các trường bắt buộc", 400)
-        );
-      }
-
-      // Xác thực token
-      const decoded = jwt.verify(
-        resetToken,
-        process.env.RESET_PASSWORD_SECRET as string
-      ) as { email: string; resetCode: string };
-
-      if (decoded.resetCode !== resetCode) {
-        return next(new ErrorHandler("Mã đặt lại không hợp lệ", 400));
-      }
-
-      // Kiểm tra token trong Redis
-      const storedToken = await redis.get(`reset:${decoded.email}`);
-      if (storedToken !== resetToken) {
-        return next(
-          new ErrorHandler("Token đặt lại không hợp lệ hoặc đã hết hạn", 400)
-        );
-      }
-
-      // Kiểm tra độ mạnh của mật khẩu mới
-      const passwordRegex = /^(?=.*[!@#$&*])(?=.*[0-9]).{6,}$/;
-      if (!passwordRegex.test(newPassword)) {
-        return next(
-          new ErrorHandler(
-            "Mật khẩu phải có ít nhất 6 ký tự, chứa một số và một ký tự đặc biệt",
-            400
-          )
-        );
-      }
-
-      // Cập nhật mật khẩu
-      const user = await userModel
-        .findOne({ email: decoded.email })
-        .select("+password");
-      if (!user) {
-        return next(new ErrorHandler("Người dùng không tồn tại", 404));
-      }
-
-      user.password = newPassword;
-      await user.save();
-
-      // Xóa token trong Redis
-      await redis.del(`reset:${decoded.email}`);
+      const { resetToken, resetCode, newPassword } = req.body;
+      const result = await resetPasswordService({ resetToken, resetCode, newPassword });
 
       res.status(200).json({
         success: true,
-        message:
-          "Đặt lại mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới.",
+        message: result.message,
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
@@ -385,49 +203,12 @@ export const resetPassword = CatchAsyncError(
   }
 );
 
-interface IUpdateProfilePicture {
-  avatar: string;
-}
-
-// Cập nhật ảnh hồ sơ
 export const updateProfilePicture = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { avatar } = req.body as IUpdateProfilePicture;
-
+      const { avatar } = req.body;
       const userId = req.user?._id;
-
-      const user = await userModel.findById(userId).select("+password");
-
-      if (avatar && user) {
-        // Nếu người dùng đã có ảnh đại diện thì xóa ảnh cũ
-        if (user?.avatar?.public_id) {
-          // Xóa ảnh cũ
-          await cloudinary.v2.uploader.destroy(user?.avatar?.public_id);
-
-          const myCloud = await cloudinary.v2.uploader.upload(avatar, {
-            folder: "avatars",
-            width: 150,
-          });
-          user.avatar = {
-            public_id: myCloud.public_id,
-            url: myCloud.secure_url,
-          };
-        } else {
-          const myCloud = await cloudinary.v2.uploader.upload(avatar, {
-            folder: "avatars",
-            width: 150,
-          });
-          user.avatar = {
-            public_id: myCloud.public_id,
-            url: myCloud.secure_url,
-          };
-        }
-      }
-
-      await user?.save();
-
-      await redis.set(userId, JSON.stringify(user));
+      const user = await updateProfilePictureService(userId, avatar);
 
       res.status(200).json({
         success: true,
@@ -440,57 +221,46 @@ export const updateProfilePicture = CatchAsyncError(
   }
 );
 
-// Lấy tất cả người dùng --- chỉ dành cho admin
 export const getAllUsers = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      getAllUsersService(res);
+      const users = await getAllUsersService();
+
+      res.status(201).json({
+        success: true,
+        users,
+      });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
     }
   }
 );
 
-// Cập nhật vai trò người dùng --- chỉ dành cho admin
 export const updateUserRole = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { email, role } = req.body;
-      const isUserExist = await userModel.findOne({ email });
-      if (isUserExist) {
-        const id = isUserExist._id;
-        updateUserRoleService(res, id, role);
-      } else {
-        res.status(400).json({
-          success: false,
-          message: "Người dùng không tồn tại",
-        });
-      }
+      const user = await updateUserRoleService(email, role);
+
+      res.status(201).json({
+        success: true,
+        user,
+      });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
     }
   }
 );
 
-// Xóa người dùng --- chỉ dành cho admin
 export const deleteUser = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-
-      const user = await userModel.findById(id);
-
-      if (!user) {
-        return next(new ErrorHandler("Người dùng không tồn tại", 404));
-      }
-
-      await user.deleteOne({ id });
-
-      await redis.del(id);
+      const result = await deleteUserService(id);
 
       res.status(200).json({
         success: true,
-        message: "Xóa người dùng thành công",
+        message: result.message,
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
@@ -498,61 +268,83 @@ export const deleteUser = CatchAsyncError(
   }
 );
 
-// Lấy danh sách khóa học của người dùng
 export const getUserCourses = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Lấy userId từ thông tin đã được xác thực (thường được thêm vào req trong middleware auth)
       const userId = req.user?._id;
-
-      // Nếu không có userId, tức là người dùng chưa đăng nhập
       if (!userId) {
         return next(new ErrorHandler("Người dùng chưa đăng nhập", 401));
       }
 
-      // Tìm người dùng theo ID
-      const user = await userModel.findById(userId);
-      
-      // Nếu người dùng không tồn tại trong database
-      if (!user) {
-        return next(new ErrorHandler("Người dùng không tồn tại", 404));
-      }
+      const courses = await getUserCoursesService(userId);
 
-      // Trả về danh sách các khóa học của người dùng (nếu không có thì trả mảng rỗng)
       res.status(200).json({
         success: true,
-        courses: user.courses || [],
+        courses,
       });
-
     } catch (error: any) {
-      // Nếu có lỗi xảy ra trong quá trình thực thi, trả về lỗi server
       return next(new ErrorHandler(error.message, 500));
     }
   }
 );
-// controllers/user.controller.ts
 export const banUser = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const { isBanned } = req.body; // true để ban, false để bỏ ban
-
-      const user = await userModel.findById(id);
-      if (!user) {
-        return next(new ErrorHandler("Người dùng không tồn tại", 404));
-      }
-
-      user.isBanned = isBanned;
-      await user.save();
-
-      // Cập nhật Redis
-      await redis.set(id, JSON.stringify(user));
+      const { isBanned } = req.body;
+      const result = await banUserService(id, isBanned);
 
       res.status(200).json({
         success: true,
-        message: isBanned
-          ? "Khóa người dùng thành công!"
-          : "Bỏ khóa người dùng thành công!",
+        message: result.message,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+export const addToFavorites = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?._id;
+      const { courseId } = req.body;
+
+      const result = await addToFavoritesService(userId, courseId);
+
+      res.status(200).json(result);
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+// Xóa khóa học khỏi danh sách yêu thích
+export const removeFromFavorites = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?._id;
+      const { courseId } = req.body;
+
+      const result = await removeFromFavoritesService(userId, courseId);
+
+      res.status(200).json(result);
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+// Lấy danh sách khóa học yêu thích
+export const getFavoriteCourses = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?._id;
+
+      const favoriteCourses = await getFavoriteCoursesService(userId);
+
+      res.status(200).json({
+        success: true,
+        courses: favoriteCourses,
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
