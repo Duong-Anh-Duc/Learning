@@ -412,6 +412,181 @@ export const getCategoriesService = async () => {
   return categories;
 };
 
+export const createCourseService = async (data: any, files: any) => {
+  const {
+    name,
+    description,
+    categories,
+    price,
+    estimatedPrice,
+    tags,
+    level,
+    benefits,
+    prerequisites,
+    courseData,
+  } = data;
+
+  if (!name || !description || !categories || !price || !tags || !level) {
+    throw new ErrorHandler("Vui lòng cung cấp đầy đủ các trường bắt buộc", 400);
+  }
+
+  let thumbnail: CloudinaryResource = { public_id: "", url: "" };
+  if (files && files.thumbnail) {
+    const thumbnailFile = files.thumbnail[0];
+    const myCloud = await cloudinary.v2.uploader.upload(thumbnailFile.path, {
+      folder: "courses/thumbnails",
+      resource_type: "image",
+    });
+    thumbnail = {
+      public_id: myCloud.public_id,
+      url: myCloud.secure_url,
+    };
+    fs.unlinkSync(thumbnailFile.path);
+  }
+
+  let demoUrl = data.demoUrl || "";
+  if (files && files.demoVideo) {
+    const demoVideoFile = files.demoVideo[0];
+    const myCloud = await cloudinary.v2.uploader.upload(demoVideoFile.path, {
+      folder: "courses/videos",
+      resource_type: "video",
+    });
+    demoUrl = myCloud.secure_url;
+    fs.unlinkSync(demoVideoFile.path);
+  }
+
+  let parsedCourseData = courseData ? JSON.parse(courseData) : [];
+  if (files && files.courseVideos) {
+    const courseVideoFiles = files.courseVideos;
+    for (
+      let i = 0;
+      i < courseVideoFiles.length && i < parsedCourseData.length;
+      i++
+    ) {
+      const myCloud = await cloudinary.v2.uploader.upload(
+        courseVideoFiles[i].path,
+        {
+          folder: "courses/videos",
+          resource_type: "video",
+        }
+      );
+      parsedCourseData[i].videoUrl = myCloud.secure_url;
+      fs.unlinkSync(courseVideoFiles[i].path);
+    }
+  }
+
+  const courseDataToSave = {
+    name,
+    description,
+    categories,
+    price,
+    estimatedPrice: estimatedPrice || undefined,
+    thumbnail,
+    tags,
+    level,
+    demoUrl,
+    benefits: benefits ? JSON.parse(benefits) : [],
+    prerequisites: prerequisites ? JSON.parse(prerequisites) : [],
+    courseData: parsedCourseData,
+    ratings: 0,
+    purchased: 0,
+  };
+
+  const course = await CourseModel.create(courseDataToSave);
+
+  await redis.set(course._id.toString(), JSON.stringify(course), "EX", 604800);
+
+  io.to("allUsers").emit("newCourse", {
+    message: `Khóa học mới: ${course.name} đã được thêm!`,
+    course: {
+      _id: course._id,
+      name: course.name,
+      thumbnail: course.thumbnail,
+      price: course.price,
+    },
+  });
+
+  return course;
+};
+
+export const addLessonToCourseService = async (data: any, files: any) => {
+  const {
+    courseId,
+    title,
+    description,
+    videoSection,
+    videoLength,
+    videoPlayer,
+    links,
+    suggestion,
+    questions,
+  } = data;
+
+  if (
+    !courseId ||
+    !title ||
+    !description ||
+    !videoSection ||
+    !videoLength ||
+    !videoPlayer
+  ) {
+    throw new ErrorHandler(
+      "Vui lòng cung cấp đầy đủ các trường bắt buộc cho bài học",
+      400
+    );
+  }
+
+  const course = await CourseModel.findById(courseId);
+  if (!course) {
+    throw new ErrorHandler("Không tìm thấy khóa học", 404);
+  }
+
+  let videoUrl = "";
+  if (files && files.videoFile) {
+    const videoFile = files.videoFile[0];
+    const myCloud = await cloudinary.v2.uploader.upload(videoFile.path, {
+      folder: "courses/videos",
+      resource_type: "video",
+    });
+    videoUrl = myCloud.secure_url;
+    fs.unlinkSync(videoFile.path);
+  }
+
+  let videoThumbnail: CloudinaryResource = { public_id: "", url: "" };
+  if (files && files.thumbnailFile) {
+    const thumbnailFile = files.thumbnailFile[0];
+    const myCloud = await cloudinary.v2.uploader.upload(thumbnailFile.path, {
+      folder: "courses/thumbnails",
+      resource_type: "image",
+    });
+    videoThumbnail = {
+      public_id: myCloud.public_id,
+      url: myCloud.secure_url,
+    };
+    fs.unlinkSync(thumbnailFile.path);
+  }
+
+  const newCourseData = {
+    title,
+    description,
+    videoUrl,
+    videoSection,
+    videoLength: Number(videoLength),
+    videoPlayer,
+    links: links ? JSON.parse(links) : [],
+    suggestion: suggestion || "",
+    questions: questions ? JSON.parse(questions) : [],
+    videoThumbnail,
+  } as ICourseData;
+
+  course.courseData.push(newCourseData);
+  await course.save();
+
+  await redis.set(course._id.toString(), JSON.stringify(course), "EX", 604800);
+
+  return course;
+};
+
 export const editLessonService = async (data: any, files: any) => {
   const {
     courseId,
