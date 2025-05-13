@@ -1,8 +1,8 @@
 // frontend/components/courses/course.lesson.tsx
+import { CourseDataType, CoursesType } from "@/types/courses";
 import { Entypo, Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { CoursesType, CourseDataType } from "@/types/courses";
 
 export default function CourseLesson({
   courseDetails,

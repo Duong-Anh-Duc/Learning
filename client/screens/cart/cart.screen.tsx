@@ -1,4 +1,3 @@
-// frontend/app/(routes)/cart/index.tsx
 import { useCart } from "@/context/CartContext";
 import { SERVER_URI } from "@/utils/uri";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
@@ -7,19 +6,20 @@ import { useStripe } from "@stripe/stripe-react-native";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Image,
   Modal,
   RefreshControl,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { Toast } from "react-native-toast-notifications";
+import { cartStyles } from "@/styles/cart/cartStyles";
+import { modalStyles } from "@/styles/cart//modalStyles";
 
 type CartItemType = {
   courseId: string;
@@ -43,9 +43,11 @@ export default function CartScreen() {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { cartItems, removeFromCart, clearCart, fetchCart } = useCart();
 
-  const fetchEnrolledCourses = async () => {
+  const fetchEnrolledCourses = useCallback(async () => {
     try {
-      const cachedEnrolledCourses = await AsyncStorage.getItem("enrolledCourses");
+      const cachedEnrolledCourses = await AsyncStorage.getItem(
+        "enrolledCourses"
+      );
       if (cachedEnrolledCourses) {
         setEnrolledCourses(JSON.parse(cachedEnrolledCourses));
         return;
@@ -65,14 +67,16 @@ export default function CartScreen() {
         },
       });
 
-      const courses = response.data.courses.map((course: any) => course.courseId);
+      const courses = response.data.courses.map(
+        (course: any) => course.courseId
+      );
       setEnrolledCourses(courses);
       await AsyncStorage.setItem("enrolledCourses", JSON.stringify(courses));
     } catch (error: any) {
-      console.error("Lỗi khi lấy danh sách khóa học đã đăng ký:", error);
-      Toast.show("Không thể lấy danh sách khóa học đã đăng ký", { type: "danger" });
+      console.error("Error fetching enrolled courses:", error);
+      Toast.show("Unable to fetch enrolled courses", { type: "danger" });
     }
-  };
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -81,49 +85,49 @@ export default function CartScreen() {
         await fetchCart();
         await fetchEnrolledCourses();
       } catch (error: any) {
-        console.error("Lỗi khi tải dữ liệu giỏ hàng:", error);
-        Toast.show("Không thể tải dữ liệu giỏ hàng", { type: "danger" });
+        console.error("Error loading cart data:", error);
+        Toast.show("Unable to load cart data", { type: "danger" });
       } finally {
         setIsLoading(false);
       }
     };
 
     loadData();
-  }, []);
+  }, [fetchCart, fetchEnrolledCourses]);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await AsyncStorage.removeItem("enrolledCourses");
       await fetchCart();
       await fetchEnrolledCourses();
     } catch (error: any) {
-      Toast.show("Không thể làm mới dữ liệu", { type: "danger" });
+      Toast.show("Unable to refresh data", { type: "danger" });
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [fetchCart, fetchEnrolledCourses]);
 
-  const calculateTotalPrice = () => {
+  const calculateTotalPrice = useCallback(() => {
     const totalPrice = cartItems
       .filter((item) => selectedCourseIds.includes(item.courseId))
       .reduce((total: number, item: CartItemType) => {
         return total + Number(item.priceAtPurchase);
       }, 0);
     return totalPrice.toFixed(2);
-  };
+  }, [cartItems, selectedCourseIds]);
 
-  const toggleSelection = (courseId: string) => {
+  const toggleSelection = useCallback((courseId: string) => {
     setSelectedCourseIds((prev) =>
       prev.includes(courseId)
         ? prev.filter((id) => id !== courseId)
         : [...prev, courseId]
     );
-  };
+  }, []);
 
-  const handleCourseDetails = (item: CartItemType) => {
+  const handleCourseDetails = useCallback((item: CartItemType) => {
     if (!item.courseId) {
-      Toast.show("Dữ liệu khóa học không hợp lệ", { type: "danger" });
+      Toast.show("Invalid course data", { type: "danger" });
       return;
     }
     router.push({
@@ -132,15 +136,15 @@ export default function CartScreen() {
         courseId: item.courseId,
       },
     });
-  };
+  }, []);
 
-  const handleAccessCourse = async (courseId: string) => {
+  const handleAccessCourse = useCallback(async (courseId: string) => {
     try {
       const accessToken = await AsyncStorage.getItem("access_token");
       const refreshToken = await AsyncStorage.getItem("refresh_token");
 
       if (!accessToken || !refreshToken) {
-        Toast.show("Vui lòng đăng nhập để truy cập khóa học", { type: "warning" });
+        Toast.show("Please log in to access the course", { type: "warning" });
         router.push("/(routes)/login");
         return;
       }
@@ -157,38 +161,43 @@ export default function CartScreen() {
         params: { courseId },
       });
     } catch (error: any) {
-      console.error("Lỗi khi truy cập khóa học:", error);
-      Toast.show("Không thể truy cập khóa học", { type: "danger" });
+      console.error("Error accessing course:", error);
+      Toast.show("Unable to access course", { type: "danger" });
     }
-  };
+  }, []);
 
-  const handleRemoveItem = async (courseId: string) => {
-    try {
-      await removeFromCart(courseId);
-      Toast.show("Đã xóa khóa học khỏi giỏ hàng!", { type: "success" });
-    } catch (error: any) {
-      Toast.show("Không thể xóa khóa học khỏi giỏ hàng", { type: "danger" });
-    }
-  };
+  const handleRemoveItem = useCallback(
+    async (courseId: string) => {
+      try {
+        await removeFromCart(courseId);
+        Toast.show("Course removed from cart!", { type: "success" });
+      } catch (error: any) {
+        Toast.show("Unable to remove course from cart", { type: "danger" });
+      }
+    },
+    [removeFromCart]
+  );
 
-  const handleShowModal = () => {
+  const handleShowModal = useCallback(() => {
     if (selectedCourseIds.length === 0) {
-      Toast.show("Vui lòng chọn ít nhất một khóa học để thanh toán", {
+      Toast.show("Please select at least one course to proceed", {
         type: "warning",
       });
       return;
     }
     setIsModalVisible(true);
-  };
+  }, [selectedCourseIds]);
 
-  const handlePayment = async () => {
+  const handlePayment = useCallback(async () => {
     setIsModalVisible(false);
     try {
       setIsLoading(true);
       const accessToken = await AsyncStorage.getItem("access_token");
       const refreshToken = await AsyncStorage.getItem("refresh_token");
       if (!accessToken || !refreshToken) {
-        Toast.show("Vui lòng đăng nhập để thanh toán", { type: "warning" });
+        Toast.show("Please log in to proceed with payment", {
+          type: "warning",
+        });
         router.push("/(routes)/login");
         return;
       }
@@ -206,7 +215,8 @@ export default function CartScreen() {
         }
       );
 
-      const { client_secret: clientSecret, paymentIntentId } = paymentIntentResponse.data;
+      const { client_secret: clientSecret, paymentIntentId } =
+        paymentIntentResponse.data;
 
       const initSheetResponse = await initPaymentSheet({
         merchantDisplayName: "EduBridge",
@@ -215,14 +225,14 @@ export default function CartScreen() {
       });
 
       if (initSheetResponse.error) {
-        Toast.show("Lỗi khi khởi tạo thanh toán", { type: "danger" });
+        Toast.show("Error initializing payment", { type: "danger" });
         return;
       }
 
       const paymentResponse = await presentPaymentSheet();
 
       if (paymentResponse.error) {
-        Toast.show("Thanh toán thất bại", { type: "danger" });
+        Toast.show("Payment failed", { type: "danger" });
       } else {
         const paymentIntentDetailsResponse = await axios.get(
           `${SERVER_URI}/payment-intent/${paymentIntentId}`,
@@ -237,132 +247,144 @@ export default function CartScreen() {
         await createOrder(paymentResponse, paymentIntentDetailsResponse.data);
       }
     } catch (error) {
-      console.error("Lỗi khi xử lý thanh toán:", error);
-      Toast.show("Lỗi khi xử lý thanh toán", { type: "danger" });
+      console.error("Error processing payment:", error);
+      Toast.show("Error processing payment", { type: "danger" });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [calculateTotalPrice, createOrder]);
 
-  const createOrder = async (paymentResponse: any, paymentIntentDetails: any) => {
-    try {
-      setIsLoading(true);
-      const accessToken = await AsyncStorage.getItem("access_token");
-      const refreshToken = await AsyncStorage.getItem("refresh_token");
+  const createOrder = useCallback(
+    async (paymentResponse: any, paymentIntentDetails: any) => {
+      try {
+        setIsLoading(true);
+        const accessToken = await AsyncStorage.getItem("access_token");
+        const refreshToken = await AsyncStorage.getItem("refresh_token");
 
-      if (!accessToken || !refreshToken) {
-        Toast.show("Vui lòng đăng nhập để tạo đơn hàng", { type: "warning" });
-        router.push("/(routes)/login");
-        return;
-      }
-
-      const response = await axios.post(
-        `${SERVER_URI}/create-mobile-order`,
-        {
-          selectedCourseIds,
-          payment_info: {
-            ...paymentResponse,
-            paymentIntent: paymentIntentDetails,
-          },
-        },
-        {
-          headers: {
-            "access-token": accessToken,
-            "refresh-token": refreshToken,
-          },
+        if (!accessToken || !refreshToken) {
+          Toast.show("Please log in to create order", { type: "warning" });
+          router.push("/(routes)/login");
+          return;
         }
-      );
 
-      setOrderSuccess(true);
-      setOrderDetails(response.data.order);
-      await fetchCart();
-      await fetchEnrolledCourses();
-      Toast.show("Thanh toán thành công!", { type: "success" });
-    } catch (error: any) {
-      console.error("Lỗi khi tạo đơn hàng:", error);
-      Toast.show("Lỗi khi tạo đơn hàng", { type: "danger" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        const response = await axios.post(
+          `${SERVER_URI}/create-mobile-order`,
+          {
+            selectedCourseIds,
+            payment_info: {
+              ...paymentResponse,
+              paymentIntent: paymentIntentDetails,
+            },
+          },
+          {
+            headers: {
+              "access-token": accessToken,
+              "refresh-token": refreshToken,
+            },
+          }
+        );
+
+        setOrderSuccess(true);
+        setOrderDetails(response.data.order);
+        await fetchCart();
+        await fetchEnrolledCourses();
+        Toast.show("Payment successful!", { type: "success" });
+      } catch (error: any) {
+        console.error("Error creating order:", error);
+        Toast.show("Error creating order", { type: "danger" });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [fetchCart, fetchEnrolledCourses, selectedCourseIds]
+  );
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={cartStyles.loadingContainer}>
         <ActivityIndicator size="large" color="#009990" />
-        <Text style={styles.loadingText}>Đang tải...</Text>
+        <Text style={cartStyles.loadingText}>Loading...</Text>
       </View>
     );
   }
 
   return (
-    <LinearGradient colors={["#009990", "#F6F7F9"]} style={styles.container}>
+    <LinearGradient
+      colors={["#009990", "#F6F7F9"]}
+      style={cartStyles.container}
+    >
       {orderSuccess ? (
-        <View style={styles.successContainer}>
-          <Ionicons name="checkmark-circle" size={80} color="#009990" style={styles.successIcon} />
-          <Text style={styles.successTitle}>
-            Thanh Toán Thành Công!
+        <View style={cartStyles.successContainer}>
+          <Ionicons
+            name="checkmark-circle"
+            size={80}
+            color="#009990"
+            style={cartStyles.successIcon}
+          />
+          <Text style={cartStyles.successTitle}>Payment Successful!</Text>
+          <Text style={cartStyles.successText}>
+            Thank you for your purchase!
           </Text>
-          <Text style={styles.successText}>
-            Cảm ơn bạn đã mua hàng!
-          </Text>
-          <View style={styles.orderDetails}>
-            <Text style={styles.orderText}>
-              Mã đơn hàng: {orderDetails?._id?.slice(0, 6) ?? "N/A"}
+          <View style={cartStyles.orderDetails}>
+            <Text style={cartStyles.orderText}>
+              Order ID: {orderDetails?._id?.slice(0, 6) ?? "N/A"}
             </Text>
-            <Text style={styles.orderText}>
-              Trạng thái: {orderDetails?.status ?? "N/A"}
+            <Text style={cartStyles.orderText}>
+              Status: {orderDetails?.status ?? "N/A"}
             </Text>
-            <Text style={styles.orderText}>
-              Tổng giá: {orderDetails?.totalPrice?.toFixed(2) ?? "0"} VNĐ
+            <Text style={cartStyles.orderText}>
+              Total: {orderDetails?.totalPrice?.toFixed(2) ?? "0"} VNĐ
             </Text>
-            <Text style={styles.orderText}>
-              Số lượng khóa học: {orderDetails?.courses?.length ?? 0}
+            <Text style={cartStyles.orderText}>
+              Courses: {orderDetails?.courses?.length ?? 0}
             </Text>
-            <Text style={styles.orderText}>
-              Người mua: {orderDetails?.userName ?? "N/A"}
+            <Text style={cartStyles.orderText}>
+              Buyer: {orderDetails?.userName ?? "N/A"}
             </Text>
-            <Text style={styles.orderText}>
-              Phương thức thanh toán: {orderDetails?.payment_info?.paymentMethod ?? "N/A"}
+            <Text style={cartStyles.orderText}>
+              Payment Method:{" "}
+              {orderDetails?.payment_info?.paymentMethod ?? "N/A"}
             </Text>
-            <Text style={styles.orderText}>
-              Thời gian thanh toán:{" "}
+            <Text style={cartStyles.orderText}>
+              Payment Time:{" "}
               {orderDetails?.payment_info?.created
-                ? new Date(orderDetails.payment_info.created * 1000).toLocaleString()
+                ? new Date(
+                    orderDetails.payment_info.created * 1000
+                  ).toLocaleString()
                 : "N/A"}
             </Text>
-            <Text style={styles.orderText}>
-              Bạn sẽ nhận được email thông báo!
+            <Text style={cartStyles.orderText}>
+              You will receive an email notification!
             </Text>
           </View>
           <TouchableOpacity
-            style={styles.backButton}
+            style={cartStyles.backButton}
             onPress={() => {
               setOrderSuccess(false);
               router.push("/(tabs)");
             }}
           >
-            <Text style={styles.backButtonText}>Quay lại Trang chủ</Text>
+            <Text style={cartStyles.backButtonText}>Back to Home</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <View style={{ flex: 1 }}>
-          <View style={styles.header}>
+          <View style={cartStyles.header}>
             <TouchableOpacity onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color="#333" />
             </TouchableOpacity>
-            <Text style={styles.headerText}>Giỏ Hàng</Text>
-            <View style={styles.cartCount}>
-              <Text style={styles.cartCountText}>{cartItems.length}</Text>
+            <Text style={cartStyles.headerText}>Cart</Text>
+            <View style={cartStyles.cartCount}>
+              <Text style={cartStyles.cartCountText}>{cartItems.length}</Text>
             </View>
           </View>
           <FlatList<CartItemType>
             data={cartItems}
             keyExtractor={(item) => item.courseId || Math.random().toString()}
             renderItem={({ item }) => (
-              <View style={styles.cartItem}>
+              <View style={cartStyles.cartItem}>
                 <TouchableOpacity
-                  style={styles.checkbox}
+                  style={cartStyles.checkbox}
                   onPress={() => toggleSelection(item.courseId)}
                 >
                   <Ionicons
@@ -380,52 +402,64 @@ export default function CartScreen() {
                   />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.courseImageContainer}
+                  style={cartStyles.courseImageContainer}
                   onPress={() => handleCourseDetails(item)}
                 >
                   <Image
-                    source={{ uri: item.thumbnail?.url || "https://via.placeholder.com/80" }}
-                    style={styles.courseImage}
+                    source={{
+                      uri:
+                        item.thumbnail?.url || "https://via.placeholder.com/80",
+                    }}
+                    style={cartStyles.courseImage}
                   />
                 </TouchableOpacity>
-                <View style={styles.courseDetails}>
+                <View style={cartStyles.courseDetails}>
                   <TouchableOpacity onPress={() => handleCourseDetails(item)}>
-                    <Text style={styles.courseName}>{item.courseName}</Text>
+                    <Text style={cartStyles.courseName}>{item.courseName}</Text>
                   </TouchableOpacity>
-                  <Text style={styles.coursePrice}>
-                    {(item.priceAtPurchase).toFixed(2)} VNĐ
+                  <Text style={cartStyles.coursePrice}>
+                    {item.priceAtPurchase.toFixed(2)} VNĐ
                   </Text>
                   {enrolledCourses.includes(item.courseId) ? (
                     <TouchableOpacity
-                      style={styles.accessButton}
+                      style={cartStyles.accessButton}
                       onPress={() => handleAccessCourse(item.courseId)}
                     >
-                      <MaterialIcons name="play-circle-outline" size={20} color="#fff" />
-                      <Text style={styles.accessButtonText}>Truy cập khóa học</Text>
+                      <MaterialIcons
+                        name="play-circle-outline"
+                        size={20}
+                        color="#fff"
+                      />
+                      <Text style={cartStyles.accessButtonText}>
+                        Access Course
+                      </Text>
                     </TouchableOpacity>
                   ) : (
                     <TouchableOpacity
-                      style={styles.removeButton}
+                      style={cartStyles.removeButton}
                       onPress={() => handleRemoveItem(item.courseId)}
                     >
                       <MaterialIcons name="delete" size={20} color="#fff" />
-                      <Text style={styles.removeButtonText}>Xóa</Text>
+                      <Text style={cartStyles.removeButtonText}>Remove</Text>
                     </TouchableOpacity>
                   )}
                 </View>
               </View>
             )}
             ListEmptyComponent={() => (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="cart-outline" size={80} color="#575757" style={styles.emptyIcon} />
-                <Text style={styles.emptyText}>
-                  Giỏ Hàng Của Bạn Đang Trống!
-                </Text>
+              <View style={cartStyles.emptyContainer}>
+                <Ionicons
+                  name="cart-outline"
+                  size={80}
+                  color="#575757"
+                  style={cartStyles.emptyIcon}
+                />
+                <Text style={cartStyles.emptyText}>Your Cart is Empty!</Text>
                 <TouchableOpacity
-                  style={styles.shopButton}
+                  style={cartStyles.shopButton}
                   onPress={() => router.push("/(tabs)")}
                 >
-                  <Text style={styles.shopButtonText}>Khám phá khóa học</Text>
+                  <Text style={cartStyles.shopButtonText}>Explore Courses</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -436,20 +470,20 @@ export default function CartScreen() {
             windowSize={10}
             removeClippedSubviews={true}
             getItemLayout={(data, index) => ({
-              length: 120, // Tăng chiều cao để chứa hình ảnh
+              length: 120,
               offset: 120 * index,
               index,
             })}
             contentContainerStyle={{ paddingBottom: 20 }}
           />
           {cartItems.length > 0 && (
-            <View style={styles.footer}>
-              <Text style={styles.totalText}>
-                Tổng Cộng: {calculateTotalPrice()} VNĐ
+            <View style={cartStyles.footer}>
+              <Text style={cartStyles.totalText}>
+                Total: {calculateTotalPrice()} VNĐ
               </Text>
               <TouchableOpacity
                 style={[
-                  styles.checkoutButton,
+                  cartStyles.checkoutButton,
                   {
                     opacity: selectedCourseIds.length === 0 ? 0.5 : 1,
                   },
@@ -460,8 +494,8 @@ export default function CartScreen() {
                 {isLoading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.checkoutButtonText}>
-                    Thanh Toán ({selectedCourseIds.length})
+                  <Text style={cartStyles.checkoutButtonText}>
+                    Checkout ({selectedCourseIds.length})
                   </Text>
                 )}
               </TouchableOpacity>
@@ -473,40 +507,44 @@ export default function CartScreen() {
             visible={isModalVisible}
             onRequestClose={() => setIsModalVisible(false)}
           >
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContainer}>
-                <Text style={styles.modalTitle}>Xác nhận thanh toán</Text>
-                <Text style={styles.modalMessage}>
-                  Bạn có chắc chắn muốn thanh toán không?
+            <View style={modalStyles.modalOverlay}>
+              <View style={modalStyles.modalContainer}>
+                <Text style={modalStyles.modalTitle}>Confirm Payment</Text>
+                <Text style={modalStyles.modalMessage}>
+                  Are you sure you want to proceed with the payment?
                 </Text>
                 <FlatList
-                  data={cartItems.filter((item) => selectedCourseIds.includes(item.courseId))}
+                  data={cartItems.filter((item) =>
+                    selectedCourseIds.includes(item.courseId)
+                  )}
                   keyExtractor={(item) => item.courseId}
                   renderItem={({ item }) => (
-                    <View style={styles.modalCourseItem}>
-                      <Text style={styles.modalCourseName}>{item.courseName}</Text>
-                      <Text style={styles.modalCoursePrice}>
-                        {(item.priceAtPurchase).toFixed(2)} VNĐ
+                    <View style={modalStyles.modalCourseItem}>
+                      <Text style={modalStyles.modalCourseName}>
+                        {item.courseName}
+                      </Text>
+                      <Text style={modalStyles.modalCoursePrice}>
+                        {item.priceAtPurchase.toFixed(2)} VNĐ
                       </Text>
                     </View>
                   )}
-                  style={styles.modalCourseList}
+                  style={modalStyles.modalCourseList}
                 />
-                <Text style={styles.modalTotal}>
-                  Tổng Cộng: {calculateTotalPrice()} VNĐ
+                <Text style={modalStyles.modalTotal}>
+                  Total: {calculateTotalPrice()} VNĐ
                 </Text>
-                <View style={styles.modalButtons}>
+                <View style={modalStyles.modalButtons}>
                   <TouchableOpacity
-                    style={styles.modalCancelButton}
+                    style={modalStyles.modalCancelButton}
                     onPress={() => setIsModalVisible(false)}
                   >
-                    <Text style={styles.modalCancelText}>Hủy</Text>
+                    <Text style={modalStyles.modalCancelText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.modalConfirmButton}
+                    style={modalStyles.modalConfirmButton}
                     onPress={handlePayment}
                   >
-                    <Text style={styles.modalConfirmText}>Xác nhận</Text>
+                    <Text style={modalStyles.modalConfirmText}>Confirm</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -517,330 +555,3 @@ export default function CartScreen() {
     </LinearGradient>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: "#333",
-    fontFamily: "Nunito_600SemiBold",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E1E2E5",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerText: {
-    fontSize: 24,
-    fontFamily: "Raleway_700Bold",
-    color: "#333",
-  },
-  cartCount: {
-    backgroundColor: "#141517",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  cartCountText: {
-    color: "#fff",
-    fontSize: 14,
-    fontFamily: "Nunito_600SemiBold",
-  },
-  successContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    margin: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  successIcon: {
-    marginBottom: 20,
-  },
-  successTitle: {
-    fontSize: 24,
-    fontFamily: "Raleway_700Bold",
-    color: "#009990",
-    textAlign: "center",
-  },
-  successText: {
-    fontSize: 16,
-    fontFamily: "Nunito_400Regular",
-    color: "#575757",
-    marginTop: 10,
-    textAlign: "center",
-  },
-  orderDetails: {
-    marginTop: 20,
-    alignItems: "center",
-    backgroundColor: "#F5F5F5",
-    padding: 15,
-    borderRadius: 10,
-    width: "100%",
-  },
-  orderText: {
-    fontSize: 16,
-    fontFamily: "Nunito_400Regular",
-    color: "#575757",
-    marginVertical: 5,
-  },
-  backButton: {
-    backgroundColor: "#009990",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 20,
-  },
-  backButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Nunito_600SemiBold",
-    textAlign: "center",
-  },
-  cartItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 12,
-    padding: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    height: 120, // Tăng chiều cao để chứa hình ảnh
-  },
-  checkbox: {
-    marginRight: 10,
-  },
-  courseImageContainer: {
-    marginRight: 12,
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  courseImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-  },
-  courseDetails: {
-    flex: 1,
-    justifyContent: "space-between",
-  },
-  courseName: {
-    fontSize: 16,
-    fontFamily: "Nunito_700Bold",
-    color: "#333",
-  },
-  coursePrice: {
-    fontSize: 14,
-    fontFamily: "Nunito_400Regular",
-    color: "#575757",
-    marginTop: 5,
-  },
-  removeButton: {
-    backgroundColor: "#FF6347",
-    borderRadius: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    marginTop: 10,
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  removeButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontFamily: "Nunito_600SemiBold",
-    marginLeft: 5,
-  },
-  accessButton: {
-    backgroundColor: "#009990",
-    borderRadius: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    marginTop: 10,
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  accessButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontFamily: "Nunito_600SemiBold",
-    marginLeft: 5,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-    marginTop: 100,
-  },
-  emptyIcon: {
-    marginBottom: 20,
-  },
-  emptyText: {
-    fontSize: 20,
-    fontFamily: "Raleway_700Bold",
-    color: "#333",
-    marginTop: 20,
-  },
-  shopButton: {
-    backgroundColor: "#009990",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 20,
-  },
-  shopButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Nunito_600SemiBold",
-  },
-  footer: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: "#E1E2E5",
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  totalText: {
-    fontSize: 18,
-    fontFamily: "Nunito_700Bold",
-    color: "#333",
-    textAlign: "center",
-    marginBottom: 10,
-  },
-  checkoutButton: {
-    backgroundColor: "#009990",
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  checkoutButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Nunito_600SemiBold",
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContainer: {
-    width: "90%",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontFamily: "Raleway_700Bold",
-    color: "#333",
-    textAlign: "center",
-    marginBottom: 10,
-  },
-  modalMessage: {
-    fontSize: 16,
-    fontFamily: "Nunito_400Regular",
-    color: "#575757",
-    textAlign: "center",
-    marginBottom: 15,
-  },
-  modalCourseList: {
-    maxHeight: 200,
-    marginBottom: 15,
-  },
-  modalCourseItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E1E2E5",
-  },
-  modalCourseName: {
-    fontSize: 14,
-    fontFamily: "Nunito_600SemiBold",
-    color: "#333",
-  },
-  modalCoursePrice: {
-    fontSize: 14,
-    fontFamily: "Nunito_400Regular",
-    color: "#575757",
-  },
-  modalTotal: {
-    fontSize: 16,
-    fontFamily: "Nunito_700Bold",
-    color: "#333",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  modalCancelButton: {
-    backgroundColor: "#FF6347",
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    flex: 1,
-    marginRight: 10,
-  },
-  modalCancelText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Nunito_600SemiBold",
-    textAlign: "center",
-  },
-  modalConfirmButton: {
-    backgroundColor: "#009990",
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    flex: 1,
-  },
-  modalConfirmText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Nunito_600SemiBold",
-    textAlign: "center",
-  },
-});

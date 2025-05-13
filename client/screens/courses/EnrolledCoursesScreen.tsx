@@ -31,13 +31,6 @@ export default function EnrolledCoursesScreen() {
         setCourses(data);
       } catch (error: any) {
         console.error("Lỗi khi lấy danh sách khóa học:", error);
-        Toast.show("Không thể lấy danh sách khóa học. Vui lòng thử lại sau.", {
-          type: "danger",
-        });
-      } finally {
-        setLoader(false);
-      }
-    };
 
     fetchCourses();
   }, [user, loading]); // Dependency là user và loading
@@ -61,9 +54,6 @@ export default function EnrolledCoursesScreen() {
         keyExtractor={(item) => item._id.toString()}
         renderItem={({ item }) => <CourseCard item={item} />}
         ListEmptyComponent={() => (
-          <View
-            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-          >
             <Text style={{ fontSize: 16, color: "#333" }}>
               Bạn chưa đăng ký khóa học nào!
             </Text>

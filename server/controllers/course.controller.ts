@@ -753,3 +753,159 @@ export const kienaddminiCourse = CatchAsyncError(
     }
   }
 );
+
+export const createCourseReview = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { courseId } = req.params;
+      const { rating, comment } = req.body;
+      const user = req.user;
+
+      const course = await CourseModel.findById(courseId);
+      if (!course) return next(new ErrorHandler("Course not found", 404));
+
+      const review: IReview = {
+        user,
+        rating: rating || 0,
+        comment,
+        commentReplies: [],
+      };
+
+      course.reviews.push(review);
+      course.ratings = course.reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / course.reviews.length;
+      await course.save();
+
+      res.status(201).json({
+        success: true,
+        review,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 500));
+    }
+  }
+);
+
+export const replyCourseReview = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { courseId, reviewId } = req.params;
+      const { comment } = req.body;
+      const user = req.user;
+
+      const course = await CourseModel.findById(courseId);
+      if (!course) return next(new ErrorHandler("Course not found", 404));
+
+      const review = course.reviews.id(reviewId);
+      if (!review) return next(new ErrorHandler("Review not found", 404));
+
+      const reply: IReview = { user, comment, rating: 0 };
+      review.commentReplies = review.commentReplies || [];
+      review.commentReplies.push(reply);
+      await course.save();
+
+      res.status(201).json({
+        success: true,
+        reply,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 500));
+    }
+  }
+);
+
+export const createLessonComment = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { courseId, lessonId } = req.params;
+      const { question } = req.body;
+      const user = req.user;
+
+      const course = await CourseModel.findById(courseId);
+      if (!course) return next(new ErrorHandler("Course not found", 404));
+
+      const lesson = course.courseData.id(lessonId);
+      if (!lesson) return next(new ErrorHandler("Lesson not found", 404));
+
+      const comment: IComment = { user, question, questionReplies: [] };
+      lesson.questions.push(comment);
+      await course.save();
+
+      res.status(201).json({
+        success: true,
+        comment,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 500));
+    }
+  }
+);
+
+export const replyLessonComment = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { courseId, lessonId, commentId } = req.params;
+      const { question } = req.body;
+      const user = req.user;
+
+      const course = await CourseModel.findById(courseId);
+      if (!course) return next(new ErrorHandler("Course not found", 404));
+
+      const lesson = course.courseData.id(lessonId);
+      if (!lesson) return next(new ErrorHandler("Lesson not found", 404));
+
+      const comment = lesson.questions.id(commentId);
+      if (!comment) return next(new ErrorHandler("Comment not found", 404));
+
+      const reply: IComment = { user, question, questionReplies: [] };
+      comment.questionReplies = comment.questionReplies || [];
+      comment.questionReplies.push(reply);
+      await course.save();
+
+      res.status(201).json({
+        success: true,
+        reply,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 500));
+    }
+  }
+);
+
+export const getCourseReviews = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { courseId } = req.params;
+
+      const course = await CourseModel.findById(courseId).select("reviews");
+      if (!course) return next(new ErrorHandler("Course not found", 404));
+
+      res.status(200).json({
+        success: true,
+        reviews: course.reviews,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 500));
+    }
+  }
+);
+
+export const getLessonComments = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { courseId, lessonId } = req.params;
+
+      const course = await CourseModel.findById(courseId);
+      if (!course) return next(new ErrorHandler("Course not found", 404));
+
+      const lesson = course.courseData.id(lessonId);
+      if (!lesson) return next(new ErrorHandler("Lesson not found", 404));
+
+      res.status(200).json({
+        success: true,
+        comments: lesson.questions,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 500));
+    }
+  }
+);

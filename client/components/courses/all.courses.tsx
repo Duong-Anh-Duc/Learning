@@ -1,6 +1,7 @@
 // frontend/components/courses/all.courses.tsx
 import CourseCard from "@/components/cards/course.card";
 import HomeBannerSlider from "@/components/home/home.banner.slider";
+import { CategoryType, CoursesType } from "@/types/courses";
 import { SERVER_URI } from "@/utils/uri";
 import {
   Nunito_500Medium,
@@ -12,10 +13,8 @@ import {
   useFonts,
 } from "@expo-google-fonts/raleway";
 import axios from "axios";
-import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { FlatList, Text, TouchableOpacity, View } from "react-native";
-import { CoursesType, CategoryType } from "@/types/courses";
+import { FlatList, Text, View } from "react-native";
 
 export default function AllCourses() {
   const [courses, setCourses] = useState<CoursesType[]>([]);
@@ -88,17 +87,6 @@ export default function AllCourses() {
               >
                 Khóa học phổ biến
               </Text>
-              <TouchableOpacity onPress={() => router.push("/(tabs)/courses")}>
-                <Text
-                  style={{
-                    fontSize: 15,
-                    color: "#2467EC",
-                    fontFamily: "Nunito_600SemiBold",
-                  }}
-                >
-                  Xem tất cả
-                </Text>
-              </TouchableOpacity>
             </View>
           </>
         }

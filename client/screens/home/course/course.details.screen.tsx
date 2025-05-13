@@ -1,8 +1,7 @@
-// frontend/screens/home/course/course.details.screen.tsx
 import ReviewCard from "@/components/cards/review.card";
 import CourseLesson from "@/components/courses/course.lesson";
 import { useCart } from "@/context/CartContext";
-import useUser from "@/hooks/auth/useUser";
+import { useUser } from "@/context/UserContext";
 import { SERVER_URI } from "@/utils/uri";
 import {
   Nunito_400Regular,
@@ -24,7 +23,6 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Toast } from "react-native-toast-notifications";
 
-// Định nghĩa các kiểu tại đây
 interface User {
   _id: string;
   name: string;
@@ -33,6 +31,9 @@ interface User {
     public_id: string;
     url: string;
   };
+  role: string;
+  isVerified: boolean;
+  courses: Array<{ courseId: string }>;
 }
 
 interface ReviewType {
@@ -100,44 +101,67 @@ interface CoursesType {
 
 export default function CourseDetailScreen() {
   const [activeButton, setActiveButton] = useState("Về Khóa Học");
-  const { user, loading: userLoading, error: userError, refreshUser } = useUser();
+  const { user, loading: userLoading, fetchUser } = useUser();
   const [isExpanded, setIsExpanded] = useState(false);
   const { courseId } = useLocalSearchParams();
   const [courseData, setCourseData] = useState<CoursesType | null>(null);
   const [checkPurchased, setCheckPurchased] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(false);
   const { addToCart, removeFromCart, cartItems, errorMessage, clearError } = useCart();
 
-  // Kiểm tra xem khóa học đã có trong giỏ hàng chưa
   const isCourseInCart = cartItems.some((item) => item.courseId === courseId);
 
-  useEffect(() => {
-    const fetchCourseData = async () => {
-      try {
-        setIsLoading(true);
-        if (typeof courseId !== "string" || !courseId) {
-          throw new Error("ID khóa học không hợp lệ");
-        }
-
-        const response = await axios.get(`${SERVER_URI}/get-course/${courseId}`);
-        const fetchedCourse: CoursesType = response.data.course;
-        setCourseData(fetchedCourse);
-        await refreshUser();
-      } catch (error: any) {
-        console.error("Lỗi khi tải dữ liệu khóa học:", error);
-        Toast.show("Không thể tải thông tin khóa học", { type: "danger" });
-        router.back();
-      } finally {
-        setIsLoading(false);
+  const fetchCourseData = async () => {
+    try {
+      setIsLoading(true);
+      if (typeof courseId !== "string" || !courseId) {
+        throw new Error("ID khóa học không hợp lệ");
       }
-    };
 
-    fetchCourseData();
-  }, [courseId]);
+      const response = await axios.get(`${SERVER_URI}/get-courses`);
+      const fetchedCourses: CoursesType[] = response.data.courses || [];
+
+      const selectedCourse = fetchedCourses.find(
+        (course: CoursesType) => course._id === courseId
+      );
+
+      if (!selectedCourse) {
+        throw new Error("Không tìm thấy khóa học");
+      }
+
+      setCourseData(selectedCourse);
+
+      if (user) {
+        const accessToken = await AsyncStorage.getItem("access_token");
+        const refreshToken = await AsyncStorage.getItem("refresh_token");
+        const favoritesResponse = await axios.get(`${SERVER_URI}/get-favorite-courses`, {
+          headers: {
+            "access-token": accessToken,
+            "refresh-token": refreshToken,
+          },
+        });
+        const favoriteCourses = favoritesResponse.data.courses || [];
+        setIsFavorite(favoriteCourses.some((course: CoursesType) => course._id === courseId));
+      }
+    } catch (error: any) {
+      console.error("Lỗi khi tải dữ liệu khóa học:", error);
+      Toast.show("Không thể tải thông tin khóa học", { type: "danger" });
+      router.back();
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (courseData && user?.courses?.find((i: any) => i.courseId === courseData?._id)) {
+    fetchCourseData();
+  }, [courseId, user]);
+
+  useEffect(() => {
+    if (user && courseData && user.courses?.find((i: any) => i.courseId === courseData?._id)) {
       setCheckPurchased(true);
+    } else {
+      setCheckPurchased(false);
     }
   }, [user, courseData]);
 
@@ -151,9 +175,20 @@ export default function CourseDetailScreen() {
           placement: "top",
           duration: 3000,
         });
+      } else {
+        Toast.show(errorMessage || "Lỗi khi thêm vào giỏ hàng", {
+          type: "danger",
+          placement: "top",
+          duration: 3000,
+        });
       }
     } catch (error: any) {
       console.error("Lỗi khi thêm vào giỏ hàng:", error);
+      Toast.show(error.response?.data?.message || "Lỗi khi thêm vào giỏ hàng", {
+        type: "danger",
+        placement: "top",
+        duration: 3000,
+      });
     }
   };
 
@@ -169,8 +204,8 @@ export default function CourseDetailScreen() {
       clearError();
     } catch (error: any) {
       console.error("Lỗi khi xóa khỏi giỏ hàng:", error);
-      Toast.show("Không thể xóa sản phẩm khỏi giỏ hàng", {
-        type: "warning",
+      Toast.show(error.response?.data?.message || "Không thể xóa sản phẩm khỏi giỏ hàng", {
+        type: "danger",
         placement: "top",
         duration: 3000,
       });
@@ -188,7 +223,7 @@ export default function CourseDetailScreen() {
       const accessToken = await AsyncStorage.getItem("access_token");
       const refreshToken = await AsyncStorage.getItem("refresh_token");
 
-      if (!accessToken || !refreshToken) {
+      if (!accessToken || !refreshToken || !user) {
         Toast.show("Vui lòng đăng nhập để truy cập khóa học", { type: "warning" });
         router.push("/(routes)/login");
         return;
@@ -215,6 +250,59 @@ export default function CourseDetailScreen() {
       } else {
         Toast.show("Bạn không có quyền truy cập khóa học này", { type: "danger" });
       }
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    try {
+      const accessToken = await AsyncStorage.getItem("access_token");
+      const refreshToken = await AsyncStorage.getItem("refresh_token");
+
+      if (!accessToken || !refreshToken || !user) {
+        Toast.show("Vui lòng đăng nhập để thêm vào danh sách yêu thích", {
+          type: "warning",
+          placement: "top",
+          duration: 3000,
+        });
+        router.push("/(routes)/login");
+        return;
+      }
+
+      const endpoint = isFavorite ? "/remove-from-favorites" : "/add-to-favorites";
+      const response = await axios.post(
+        `${SERVER_URI}${endpoint}`,
+        { courseId },
+        {
+          headers: {
+            "access-token": accessToken,
+            "refresh-token": refreshToken,
+          },
+        }
+      );
+
+      setIsFavorite(!isFavorite);
+      Toast.show(
+        response.data.message || (isFavorite ? "Đã xóa khỏi danh sách yêu thích" : "Đã thêm vào danh sách yêu thích thành công"),
+        {
+          type: "success",
+          placement: "top",
+          duration: 3000,
+        }
+      );
+
+      // Thông báo cho các màn hình khác (như FavoriteCoursesScreen) để cập nhật
+      // Đây là cách tạm thời, có thể thay thế bằng một cơ chế tốt hơn như global state hoặc event emitter
+      router.replace("/(tabs)/favorites");
+    } catch (error: any) {
+      console.error("Lỗi khi thêm/xóa khóa học yêu thích:", error);
+      Toast.show(
+        error.response?.data?.message || "Lỗi khi cập nhật danh sách yêu thích",
+        {
+          type: "danger",
+          placement: "top",
+          duration: 3000,
+        }
+      );
     }
   };
 
@@ -308,6 +396,25 @@ export default function CourseDetailScreen() {
               </Text>
             </View>
           </View>
+          <TouchableOpacity
+            style={{
+              position: "absolute",
+              zIndex: 14,
+              right: 0,
+              top: 50,
+              marginRight: 8,
+              backgroundColor: "rgba(255, 255, 255, 0.8)",
+              borderRadius: 20,
+              padding: 5,
+            }}
+            onPress={handleToggleFavorite}
+          >
+            <Ionicons
+              name={isFavorite ? "heart" : "heart-outline"}
+              size={24}
+              color={isFavorite ? "#FF6347" : "#000"}
+            />
+          </TouchableOpacity>
           <Image
             source={{ uri: courseData?.thumbnail.url || "https://via.placeholder.com/230" }}
             style={{ width: "100%", height: 230, borderRadius: 6 }}
@@ -548,6 +655,9 @@ export default function CourseDetailScreen() {
           marginHorizontal: 16,
           paddingVertical: 11,
           marginBottom: 10,
+          flexDirection: "row",
+          justifyContent: "center",
+          alignItems: "center",
         }}
       >
         {checkPurchased ? (
@@ -556,6 +666,7 @@ export default function CourseDetailScreen() {
               backgroundColor: "#009990",
               paddingVertical: 16,
               borderRadius: 4,
+              width: "100%", // Kéo dài hết chiều rộng
             }}
             onPress={handleAccessCourse}
           >
@@ -573,9 +684,10 @@ export default function CourseDetailScreen() {
         ) : (
           <TouchableOpacity
             style={{
-              backgroundColor: isCourseInCart ? "#FF6347" : "#009990", // Đổi màu nút: đỏ nếu đã có, xanh nếu chưa có
+              backgroundColor: isCourseInCart ? "#FF6347" : "#009990",
               paddingVertical: 16,
               borderRadius: 4,
+              width: "100%", // Kéo dài hết chiều rộng
             }}
             onPress={isCourseInCart ? handleRemoveFromCart : handleAddToCart}
           >
