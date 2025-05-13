@@ -6,6 +6,8 @@ import {
   addQuestion,
   addReplyToReview,
   addReview,
+  createCourseReview,
+  createLessonComment,
   deleteCourse,
   editCourse,
   filterCourses,
@@ -14,9 +16,13 @@ import {
   getAllCourses,
   getCategories,
   getCourseByUser,
+  getCourseReviews,
+  getLessonComments,
   getSingleCourse,
   kienaddCourse,
   kienaddminiCourse,
+  replyCourseReview,
+  replyLessonComment,
 } from "../controllers/course.controller";
 import { authorizeRoles, isAutheticated } from "../middleware/auth";
 const courseRouter = express.Router();
@@ -103,5 +109,24 @@ courseRouter.delete(
 
 courseRouter.get("/get-categories", getCategories);
 courseRouter.get("/filter-courses", filterCourses);
+
+courseRouter.post("/courses/:courseId/reviews",  createCourseReview);
+
+// Reply to course review
+courseRouter.post("/courses/:courseId/reviews/:reviewId/reply",  replyCourseReview);
+
+// Create lesson comment
+courseRouter.post("/courses/:courseId/lessons/:lessonId/comments",  createLessonComment);
+
+// Reply to lesson comment
+courseRouter.post("/courses/:courseId/lessons/:lessonId/comments/:commentId/reply", replyLessonComment);
+
+// Get all course reviews
+courseRouter.get("/courses/:courseId/reviews", getCourseReviews);
+
+// Get all lesson comments
+courseRouter.get("/courses/:courseId/lessons/:lessonId/comments", getLessonComments);
+
+
 
 export default courseRouter;
