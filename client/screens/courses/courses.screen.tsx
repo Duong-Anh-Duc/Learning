@@ -16,7 +16,14 @@ import {
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+  FlatList,
+  RefreshControl,
+} from "react-native";
 
 export default function CoursesScreen() {
   const [courses, setCourses] = useState<CoursesType[]>([]);
@@ -29,7 +36,8 @@ export default function CoursesScreen() {
     const fetchCategories = async () => {
       try {
         const response = await axios.get(`${SERVER_URI}/get-layout/Categories`);
-        const fetchedCategories: CategoryType[] = response.data?.layout?.categories || [];
+        const fetchedCategories: CategoryType[] =
+          response.data?.layout?.categories || [];
         setCategories(fetchedCategories);
       } catch (error) {
         console.log("Error fetching categories:", error);
@@ -99,9 +107,7 @@ export default function CoursesScreen() {
               }}
               onPress={() => handleCategories("Tất cả")}
             >
-              <Text
-                style={{ color: "#fff", fontSize: 18, fontWeight: "600" }}
-              >
+              <Text style={{ color: "#fff", fontSize: 18, fontWeight: "600" }}>
                 Tất cả
               </Text>
             </TouchableOpacity>
@@ -129,23 +135,44 @@ export default function CoursesScreen() {
         </View>
         <View style={{ flex: 1 }}>
           {loading ? (
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
               <Text style={{ fontSize: 18, fontFamily: "Nunito_700Bold" }}>
                 Đang tải...
               </Text>
             </View>
           ) : courses?.length === 0 ? (
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
               <Text style={{ textAlign: "center", fontSize: 18 }}>
                 Không có dữ liệu để hiển thị!
               </Text>
             </View>
           ) : (
-            <ScrollView style={{ marginHorizontal: 15, gap: 12 }}>
-              {courses?.map((item: CoursesType, index: number) => (
-                <CourseCard item={item} key={index} />
-              ))}
-            </ScrollView>
+            <FlatList
+              data={courses}
+              keyExtractor={(item: CoursesType) => item._id}
+              renderItem={({ item }) => <CourseCard item={item} />}
+              contentContainerStyle={{ paddingHorizontal: 15, gap: 12 }}
+              refreshControl={
+                <RefreshControl
+                  refreshing={loading}
+                  onRefresh={fetchCourses}
+                  colors={["#009990"]}
+                  tintColor="#009990"
+                />
+              }
+            />
           )}
         </View>
       </LinearGradient>
