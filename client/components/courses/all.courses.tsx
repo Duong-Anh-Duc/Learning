@@ -1,4 +1,3 @@
-// frontend/components/courses/all.courses.tsx
 import CourseCard from "@/components/cards/course.card";
 import HomeBannerSlider from "@/components/home/home.banner.slider";
 import { CategoryType, CoursesType } from "@/types/courses";
@@ -14,20 +13,22 @@ import {
 } from "@expo-google-fonts/raleway";
 import axios from "axios";
 import { useEffect, useRef, useState } from "react";
-import { FlatList, Text, View } from "react-native";
+import { FlatList, Text, View, RefreshControl } from "react-native"; // Thêm RefreshControl
 
 export default function AllCourses() {
   const [courses, setCourses] = useState<CoursesType[]>([]);
   const [originalCourses, setOriginalCourses] = useState<CoursesType[]>([]);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<CategoryType[]>([]);
+  const [refreshing, setRefreshing] = useState(false); // Thêm state cho refreshing
   const flatListRef = useRef(null);
 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const response = await axios.get(`${SERVER_URI}/get-layout/Categories`);
-        const fetchedCategories: CategoryType[] = response.data?.layout?.categories || [];
+        const fetchedCategories: CategoryType[] =
+          response.data?.layout?.categories || [];
         setCategories(fetchedCategories);
       } catch (error) {
         console.log("Error fetching categories:", error);
@@ -50,7 +51,14 @@ export default function AllCourses() {
       console.log("Error fetching courses:", error);
     } finally {
       setLoading(false);
+      setRefreshing(false); // Dừng refreshing sau khi fetch xong
     }
+  };
+
+  // Hàm xử lý khi kéo xuống để làm mới
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchCourses(); // Gọi lại hàm fetchCourses để làm mới dữ liệu
   };
 
   let [fontsLoaded, fontError] = useFonts({
@@ -95,6 +103,14 @@ export default function AllCourses() {
         showsVerticalScrollIndicator={false}
         keyExtractor={(item) => item._id.toString()}
         renderItem={({ item }) => <CourseCard item={item} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#FF6347"]} // Màu của vòng xoay (tuỳ chỉnh)
+            tintColor="#FF6347" // Màu của vòng xoay trên iOS
+          />
+        }
       />
     </View>
   );

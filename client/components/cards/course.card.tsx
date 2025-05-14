@@ -29,7 +29,9 @@ export default function CourseCard({ item }: { item: CoursesType }) {
             alignSelf: "center",
             objectFit: "cover",
           }}
-          source={{ uri: item.thumbnail?.url || "https://via.placeholder.com/150" }}
+          source={{
+            uri: item.thumbnail?.url || "https://via.placeholder.com/150",
+          }}
         />
         <View style={{ width: wp(85) }}>
           <Text
@@ -78,7 +80,7 @@ export default function CourseCard({ item }: { item: CoursesType }) {
         >
           <View style={{ flexDirection: "row" }}>
             <Text style={{ paddingTop: 10, fontSize: 18, fontWeight: "600" }}>
-              {item?.price?.toFixed(2) || "0"}.00 VNĐ
+              {(item?.price || 0).toLocaleString("vi-VN")} VNĐ
             </Text>
             <Text
               style={{
@@ -88,7 +90,7 @@ export default function CourseCard({ item }: { item: CoursesType }) {
                 fontWeight: "400",
               }}
             >
-              {item?.estimatedPrice?.toFixed(2) || "0"}.00 VNĐ
+              {(item?.estimatedPrice || 0).toLocaleString("vi-VN")} VNĐ
             </Text>
           </View>
           <View
