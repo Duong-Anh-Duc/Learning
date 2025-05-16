@@ -1,33 +1,30 @@
-// backend/routes/course.route.ts
 import express from "express";
 import multer from "multer";
 import {
   addAnwser,
+  addLessonToCourse,
   addQuestion,
   addReplyToReview,
   addReview,
-  createCourseReview,
-  createLessonComment,
+  createCourse,
   deleteCourse,
   editCourse,
+  editLesson,
   filterCourses,
   generateVideoUrl,
   getAdminAllCourses,
   getAllCourses,
   getCategories,
   getCourseByUser,
-  getCourseReviews,
-  getLessonComments,
+  getEnrolledUsers,
   getSingleCourse,
-  kienaddCourse,
-  kienaddminiCourse,
-  replyCourseReview,
-  replyLessonComment,
+  hideCourse,
+  hideLesson,
 } from "../controllers/course.controller";
 import { authorizeRoles, isAutheticated } from "../middleware/auth";
+
 const courseRouter = express.Router();
 
-// Cấu hình multer để upload file
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/");
@@ -37,51 +34,66 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({ storage,
+  limits  : {
+    fileSize : 50 * 1024 * 1024,
+  }
+ });
 
-// API tạo khóa học lớn (thay thế /kientran)
 courseRouter.post(
   "/create-course",
-  //isAutheticated,
-  //authorizeRoles("admin"),
+  isAutheticated,
+  authorizeRoles("admin"),
   upload.fields([
-    { name: "thumbnail", maxCount: 1 }, // Ảnh thumbnail
-    { name: "demoVideo", maxCount: 1 }, // Video demo
-    { name: "courseVideos", maxCount: 10 }, // Video trong courseData
+    { name: "thumbnail", maxCount: 1 },
+    { name: "demoVideo", maxCount: 1 },
+    { name: "courseVideos", maxCount: 10 },
   ]),
-  kienaddCourse
+  createCourse
 );
 
-// API thêm bài học nhỏ vào khóa học (thay thế /kientran2)
 courseRouter.post(
   "/add-lesson",
-  //isAutheticated,
-  //authorizeRoles("admin"),
+  isAutheticated,
+  authorizeRoles("admin"),
   upload.fields([
-    { name: "videoFile", maxCount: 1 }, // Video chính của bài học
-    { name: "thumbnailFile", maxCount: 1 }, // Ảnh thumbnail cho video
+    { name: "videoFile", maxCount: 1 },
+    { name: "thumbnailFile", maxCount: 1 },
   ]),
-  kienaddminiCourse
+  addLessonToCourse
 );
 
-// Các API khác giữ nguyên
 courseRouter.put(
   "/edit-course/:id",
   isAutheticated,
   authorizeRoles("admin"),
+  upload.fields([
+    { name: "thumbnail", maxCount: 1 },
+    { name: "demoVideo", maxCount: 1 },
+  ]),
   editCourse
 );
+
+courseRouter.put(
+  "/edit-lesson",
+  isAutheticated,
+  authorizeRoles("admin"),
+  upload.fields([
+    { name: "videoFile", maxCount: 1 },
+    { name: "thumbnailFile", maxCount: 1 },
+  ]),
+  editLesson
+);
+
+courseRouter.put("/hide-course/:id", isAutheticated, authorizeRoles("admin"), hideCourse);
+
+courseRouter.put("/hide-lesson/:id", isAutheticated, authorizeRoles("admin"), hideLesson);
 
 courseRouter.get("/get-course/:id", getSingleCourse);
 
 courseRouter.get("/get-courses", getAllCourses);
 
-courseRouter.get(
-  "/get-admin-courses",
-  isAutheticated,
-  authorizeRoles("admin"),
-  getAdminAllCourses
-);
+courseRouter.get("/get-admin-courses", isAutheticated, authorizeRoles("admin"), getAdminAllCourses);
 
 courseRouter.get("/get-course-content/:id", isAutheticated, getCourseByUser);
 
@@ -91,42 +103,16 @@ courseRouter.put("/add-answer", isAutheticated, addAnwser);
 
 courseRouter.put("/add-review/:id", isAutheticated, addReview);
 
-courseRouter.put(
-  "/add-reply",
-  isAutheticated,
-  authorizeRoles("admin"),
-  addReplyToReview
-);
+courseRouter.put("/add-reply", isAutheticated, authorizeRoles("admin"), addReplyToReview);
 
 courseRouter.post("/getVdoCipherOTP", generateVideoUrl);
 
-courseRouter.delete(
-  "/delete-course/:id",
-  isAutheticated,
-  authorizeRoles("admin"),
-  deleteCourse
-);
+courseRouter.delete("/delete-course/:id", isAutheticated, authorizeRoles("admin"), deleteCourse);
 
 courseRouter.get("/get-categories", getCategories);
+
 courseRouter.get("/filter-courses", filterCourses);
 
-courseRouter.post("/courses/:courseId/reviews",  createCourseReview);
-
-// Reply to course review
-courseRouter.post("/courses/:courseId/reviews/:reviewId/reply",  replyCourseReview);
-
-// Create lesson comment
-courseRouter.post("/courses/:courseId/lessons/:lessonId/comments",  createLessonComment);
-
-// Reply to lesson comment
-courseRouter.post("/courses/:courseId/lessons/:lessonId/comments/:commentId/reply", replyLessonComment);
-
-// Get all course reviews
-courseRouter.get("/courses/:courseId/reviews", getCourseReviews);
-
-// Get all lesson comments
-courseRouter.get("/courses/:courseId/lessons/:lessonId/comments", getLessonComments);
-
-
+courseRouter.get("/enrolled-users/:id", isAutheticated, authorizeRoles("admin"), getEnrolledUsers);
 
 export default courseRouter;
