@@ -476,7 +476,7 @@ export const createCourseService = async (data: any, files: any) => {
       public_id: myCloud.public_id,
       url: myCloud.secure_url,
     };
-    fs.unlinkSync(thumbnailFile.path);
+    //fs.unlinkSync(thumbnailFile.path);
   }
 
   let demoUrl = data.demoUrl || "";
@@ -487,28 +487,28 @@ export const createCourseService = async (data: any, files: any) => {
       resource_type: "video",
     });
     demoUrl = myCloud.secure_url;
-    fs.unlinkSync(demoVideoFile.path);
+    //fs.unlinkSync(demoVideoFile.path);
   }
 
-  let parsedCourseData = courseData ? JSON.parse(courseData) : [];
-  if (files && files.courseVideos) {
-    const courseVideoFiles = files.courseVideos;
-    for (
-      let i = 0;
-      i < courseVideoFiles.length && i < parsedCourseData.length;
-      i++
-    ) {
-      const myCloud = await cloudinary.v2.uploader.upload(
-        courseVideoFiles[i].path,
-        {
-          folder: "courses/videos",
-          resource_type: "video",
-        }
-      );
-      parsedCourseData[i].videoUrl = myCloud.secure_url;
-      fs.unlinkSync(courseVideoFiles[i].path);
-    }
-  }
+  // let parsedCourseData = courseData ? JSON.parse(courseData) : [];
+  // if (files && files.courseVideos) {
+  //   const courseVideoFiles = files.courseVideos;
+  //   for (
+  //     let i = 0;
+  //     i < courseVideoFiles.length && i < parsedCourseData.length;
+  //     i++
+  //   ) {
+  //     const myCloud = await cloudinary.v2.uploader.upload(
+  //       courseVideoFiles[i].path,
+  //       {
+  //         folder: "courses/videos",
+  //         resource_type: "video",
+  //       }
+  //     );
+  //     parsedCourseData[i].videoUrl = myCloud.secure_url;
+  //     fs.unlinkSync(courseVideoFiles[i].path);
+  //   }
+  // }
 
   const courseDataToSave = {
     name,
@@ -522,7 +522,7 @@ export const createCourseService = async (data: any, files: any) => {
     demoUrl,
     benefits: benefits ? JSON.parse(benefits) : [],
     prerequisites: prerequisites ? JSON.parse(prerequisites) : [],
-    courseData: parsedCourseData,
+    //courseData: parsedCourseData,
     ratings: 0,
     purchased: 0,
   };
